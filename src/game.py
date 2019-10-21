@@ -30,6 +30,7 @@ class Game(object):
             8x8 (Chess board) x 7 possible pieces (including empty). = 448.
 
         Parameters:
+            board: Python Chess board. Current board
             color: Boolean, True for white, False for black
         Returns:
             mask: numpy array, 3D matrix with the pieces of the player.
@@ -47,6 +48,8 @@ class Game(object):
         """ This method returns the matrix representation of a game turn
         (positions of the pieces of the two colors)
 
+        Params:
+            board: Python Chess board. Current board
         Returns:
             current: numpy array. 3D Matrix with dimensions 14x8x8.
         """
@@ -57,13 +60,19 @@ class Game(object):
 
     @staticmethod
     def get_game_history(board, T=8):
-        # TODO: Extract from the board queue the last T=8 moves
+        """ Returns matrix representation of the last T states
+
+        Params:
+            board: Python Chess board. Current board with moves in the stack of
+            moves
+
+        Returns:
+            history: numpy array. 3D Matrix with dimensions (14*T)x8x8.
+        """
         board_copy = board.copy()
         history = np.zeros((14 * T, 8, 8))
 
         for i in range(T):
-            # while len(board_copy.move_stack) > 0 and :
-            #    board_copy.pop()
             try:
                 board_copy.pop()
             except IndexError:
@@ -78,10 +87,15 @@ class Game(object):
         """ This method returns the matrix representation of a game with its
         history of moves.
 
+        Parameters:
+            board: Python Chess board. Current board with the previous moves in
+            the stack of moves.
+
         Returns:
             current: numpy array. 3D Matrix with dimensions (14T + 1)x8x8.
             Where T corresponds to the number of backward turns in time. (And
-            the 14 is the current representation of the two players) """
+            the 14 is the current representation of the two players)
+        """
 
         current = Game.get_current_game_state(board)
         history = Game.get_game_history(board)
