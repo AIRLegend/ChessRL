@@ -1,5 +1,6 @@
 import chess
 import numpy as np
+from player import Player
 
 
 class Game(object):
@@ -10,15 +11,24 @@ class Game(object):
         else:
             self.board = board
 
+        self.players = []
+
+    def add_player(self, player: Player):
+        """Registers a player observer to the game"""
+        if len(self.players) >= 2:
+            raise Exception("Max number of players registered.")
+        self.players.append(player)
+
     def switch_turn(self):
         """ Next player turn."""
-        # self.board.push(chess.Move.null())
         self.board.turn = True if self.board.turn else False
+
+        # Notify players of the new turn
+        for p in self.players:
+            p.notify_turn(self.board.turn)
 
     def move(self, movement):
         self.board.push(chess.Move.from_uci(movement))
-        # self.switch_turn() # TODO: Maybe remove this and call switch turn
-        # manually.
 
     def get_legal_moves(self, final_states=False):
         """ Gets a list of legal moves in the current turn """
@@ -32,6 +42,11 @@ class Game(object):
                 states.append(gi)
             moves = (moves, states)
         return moves
+
+    @property
+    def turn(self):
+        """ Returns whether is white turn."""
+        return self.board.turn
 
     def get_copy(self):
         return Game(board=self.board.copy())
@@ -93,8 +108,9 @@ class Game(object):
                 board_copy.pop()
             except IndexError:
                 break
-            history[i * 14: (i + 1) * 14, :, :] = Game.get_current_game_state(
-                board_copy)
+            history[i * 14: (i + 1) * 14, :, :] =\
+                Game.get_current_game_state(board_copy)
+
         return history
 
     @staticmethod
