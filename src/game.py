@@ -1,6 +1,5 @@
 import chess
 import numpy as np
-from player import Player
 
 
 class Game(object):
@@ -16,7 +15,14 @@ class Game(object):
         self.board.turn = True if self.board.turn else False
 
     def move(self, movement):
+        """ Makes a move.
+
+        Params:
+            movement: str, Movement in UCI notation (f2f3, g8f6...)
+        Returns: bool, wheter the game is over or not
+        """
         self.board.push(chess.Move.from_uci(movement))
+        return self.get_result() is not None
 
     def get_legal_moves(self, final_states=False):
         """ Gets a list of legal moves in the current turn """
@@ -115,4 +121,3 @@ class Game(object):
         history = Game.get_game_history(board)
         current = np.concatenate((current, history), axis=0)
         return current
-
