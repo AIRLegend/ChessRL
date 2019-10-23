@@ -1,13 +1,13 @@
 import mctree
 
 from player import Player
-from game import Game
 
 
 class Agent(Player):
 
-    def __init__(self, game):
-        super().__init__()
-        self.game = game
-        self.tree = mctree.Tree()
+    def __init__(self, color):
+        super().__init__(color)
+        #self.tree = mctree.Tree()
 
+    def best_move(self, game:'Game') -> str:  # noqa: E0602, F821
+        pass

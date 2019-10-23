@@ -142,4 +142,3 @@ class Game(object):
         history = Game.get_game_history(board)
         current = np.concatenate((current, history), axis=0)
         return current
-
