@@ -1,5 +1,9 @@
 import chess
 import numpy as np
+import cairosvg
+
+from io import BytesIO
+from PIL import Image
 
 
 class Game(object):
@@ -59,6 +63,23 @@ class Game(object):
             else:
                 result = 0  # Draw
         return result
+
+    def plot_board(self, save_path=None):
+        """ Plots the current state of the board. This is useful for debug/log
+        purposes while working outside a notebook
+
+        Parameters:
+            save_path: str, where to save the image. None if you want to plot
+            on the screen only
+        """
+        svg = chess.svg.board(self.board)
+        out = BytesIO()
+        cairosvg.svg2png(svg, write_to=out)
+        image = Image.open(out)
+        if save_path is None:
+            image.show()
+        else:
+            image.save(save_path)
 
     @staticmethod
     def get_pieces_one_hot(board, color=False):
@@ -121,3 +142,4 @@ class Game(object):
         history = Game.get_game_history(board)
         current = np.concatenate((current, history), axis=0)
         return current
+
