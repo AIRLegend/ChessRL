@@ -8,18 +8,14 @@ from game import Game
 class Stockfish(Player):
     """ AI using Stockfish to play a game of chess."""
 
-    def __init__(self, game: Game, color: bool, binary_path: str,
+    def __init__(self, color: bool, binary_path: str,
                  thinking_time=0.04):
-        super().__init__(color, game)
+        super().__init__(color)
         self.engine = chess.engine.SimpleEngine.popen_uci(binary_path)
         self.thinking_time = thinking_time
 
     def make_move(self, game: Game):
-        result = self.engine.play(self.game.board,
+        result = self.engine.play(game.board,
                                   chess.engine.Limit(time=self.thinking_time))
         game.move(result.move.uci())
         game.switch_turn()
-
-    def notify_turn(self, new_turn: bool):
-        if new_turn is self.color:
-            self.make_move()

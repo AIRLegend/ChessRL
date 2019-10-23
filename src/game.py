@@ -11,21 +11,9 @@ class Game(object):
         else:
             self.board = board
 
-        self.players = []
-
-    def add_player(self, player: Player):
-        """Registers a player observer to the game"""
-        if len(self.players) >= 2:
-            raise Exception("Max number of players registered.")
-        self.players.append(player)
-
     def switch_turn(self):
         """ Next player turn."""
         self.board.turn = True if self.board.turn else False
-
-        # Notify players of the new turn
-        for p in self.players:
-            p.notify_turn(self.board.turn)
 
     def move(self, movement):
         self.board.push(chess.Move.from_uci(movement))
@@ -127,3 +115,4 @@ class Game(object):
         history = Game.get_game_history(board)
         current = np.concatenate((current, history), axis=0)
         return current
+
