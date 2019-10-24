@@ -17,11 +17,10 @@ class SimulationPolicy(object):
 class NullPolicy(SimulationPolicy):
     """ Returns the best movement the agent thinks. """
     def __init__(self):
-        pass
+        super().__init__()
 
     def best_movement(self, agent, game):
-        # TODO: Fill
-        pass
+        return self.oponent.best_move(self.game)
 
 
 class RandomMovePolicy(SimulationPolicy):
