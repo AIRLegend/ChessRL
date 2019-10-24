@@ -1,9 +1,11 @@
 import chess
+import chess.svg
 import numpy as np
 import cairosvg
 
 from io import BytesIO
 from PIL import Image
+from matplotlib import pyplot as plt
 
 
 class Game(object):
@@ -77,7 +79,10 @@ class Game(object):
         cairosvg.svg2png(svg, write_to=out)
         image = Image.open(out)
         if save_path is None:
-            image.show()
+            # image.show()
+            plt.imshow(image)
+            plt.axis('off')
+            plt.show()
         else:
             image.save(save_path)
 
