@@ -179,20 +179,21 @@ class GameStockfish(Game):
             self.stockfish = stockfish
 
     def move(self, movement):
-        """ Makes a move.
+        """ Makes a move. If it's not your turn, Stockfish will play and if
+    the move is illegal, it will be ignored.
         Params:
             movement: str, Movement in UCI notation (f2f3, g8f6...)
         """
-        if super().move(movement):
-            print(f"Turn after player: {self.turn}")
-
-            # stockfish move
-            # TODO: Should test if stockfish gave up
+        # If stockfish moves first
+        if self.stockfish.color and len(self.board.move_stack) == 0:
             stockfish_best_move = self.stockfish.best_move(self)
             self.board.push(chess.Move.from_uci(stockfish_best_move))
-            print(f"Turn after stockfish: {self.turn}")
         else:
-            print("Wrong movement. Ignored")
+            if super().move(movement):
+                # stockfish move
+                # TODO: Should test if stockfish gave up
+                stockfish_best_move = self.stockfish.best_move(self)
+                self.board.push(chess.Move.from_uci(stockfish_best_move))
 
     def get_copy(self):
         return GameStockfish(board=self.board.copy(), stockfish=self.stockfish)
@@ -203,4 +204,4 @@ class GameStockfish(Game):
         engine. We don't want it deleted. Should only be called on the end of
         the program.
         """
-        self.stockfish.quit()
+        self.stockfish.kill()

@@ -4,22 +4,17 @@ from simpolicies import SimulationPolicy
 
 
 class Simulation(object):
-    """ Simulation of an agent agaisnt a oponent (other agent or an algorithm
-    like Stockfish)
-    """
+    """ Simulation of an agent agaisnt Other oponent """
 
-    def __init__(self, agent: Player, oponent: Player, game: Game,
+    def __init__(self, agent: Player, game: Game,
                  agent_policy: SimulationPolicy):
         """ Parameters:
             agent: Player. Our agent.
-            oponent: Player. Other agent which serves as oponent in the game
-            environment.
-            game: Game. Game environment
             agent_policy: SimulationPolicy. Move selection strategy for the
             agent (for example, random selection.)
+            stockfish_bin_path: str, PATH to the stockfish engine.
         """
         self.agent = agent
-        self.oponent = oponent
         self.game = game
         self.agent_policy = agent_policy
 
@@ -27,11 +22,10 @@ class Simulation(object):
         """ Runs the game simulation for max_moves """
         n_mov = 0
 
-        # If is the oponents turn, let him move
+        # If it's the oponent's turn...
         if self.game.turn is not self.agent.color:
             n_mov = 1
-            self.game.move(self.oponent.best_move(self.game))
-            self.game.switch_turn()
+            self.game.move(None)
 
         # While the game is not finished and the nb of moves is low
         while n_mov < max_moves and self.game.get_result() is None:
@@ -39,17 +33,14 @@ class Simulation(object):
             # self.agent.best_move(self.game)
             best_move_policy = self.agent_policy.best_movement(self.agent,
                                                                self.game)
-            self.game.move(best_move_policy)
-            self.game.switch_turn()
+            self.game.move(best_move_policy)  # The oponent also moves here
+            n_mov += 2
 
             # Check if in last turn we won of got to draw
-            if self.game.get_result() is None:
-                self.game.move(self.oponent.best_move(self.game))
-                self.game.switch_turn()
-                n_mov += 1
-
-            input()
-            self.game.plot_board()
+            #  if self.game.get_result() is None:
+            #      self.game.move(self.oponent.best_move(self.game))
+            #      self.game.switch_turn()
+            #      n_mov += 1
 
         result = self.game.get_result()
 

@@ -10,8 +10,10 @@ inspired).
 * **python-chess**: https://pypi.org/project/python-chess/
 * **numpy**
 * **Tensorflow (>= 2.0)**
-* cairosvg
-* Pillow
+* **cairosvg**
+* **Pillow**
+* **Matplotlib**
+* **Networkx & Graphviz & PyGraphviz** *(plotting diagrams of the MCST)**
 
 ### Literature
 
