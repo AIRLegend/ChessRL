@@ -7,6 +7,8 @@ from io import BytesIO
 from PIL import Image
 from matplotlib import pyplot as plt
 
+from stockfish import Stockfish
+
 
 class Game(object):
 
@@ -16,23 +18,33 @@ class Game(object):
         else:
             self.board = board
 
-    def switch_turn(self):
-        """ Next player turn."""
+    def _switch_turn(self):
+        """ Used to force the turn change. This is not necessary.
+        TODO: Maybe remove it
+        """
         self.board.turn = True if self.board.turn else False
 
     def move(self, movement):
         """ Makes a move.
-
         Params:
             movement: str, Movement in UCI notation (f2f3, g8f6...)
-        Returns: bool, wheter the game is over or not
+        Returns:
+            success: boolean. Whether the move could be executed
         """
-        self.board.push(chess.Move.from_uci(movement))
-        return self.get_result() is not None
+        # This is to prevent python-chess to put a illegal move in the
+        # move stack before launching the exception
+        success = False
+        if movement in self.get_legal_moves():
+            self.board.push(chess.Move.from_uci(movement))
+            success = True
+        return success
 
     def get_legal_moves(self, final_states=False):
-        """ Gets a list of legal moves in the current turn """
-        # moves = list(self.board.legal_moves)
+        """ Gets a list of legal moves in the current turn.
+        Parameters:
+            final_states: bool. Whether copies of the board after executing
+            each legal movement are returned.
+        """
         moves = [m.uci() for m in self.board.legal_moves]
         if final_states:
             states = []
@@ -82,7 +94,8 @@ class Game(object):
             # image.show()
             plt.imshow(image)
             plt.axis('off')
-            plt.show()
+            # plt.show()
+            plt.draw()
         else:
             image.save(save_path)
 
@@ -147,3 +160,47 @@ class Game(object):
         history = Game.get_game_history(board)
         current = np.concatenate((current, history), axis=0)
         return current
+
+
+class GameStockfish(Game):
+    """ Represents a game agaisnt a Stockfish Agent."""
+
+    def __init__(self, stockfish,
+                 stockfish_color=chess.BLACK, board=None):
+        super().__init__(board=board)
+        if stockfish is None:
+            raise ValueError('A Stockfish object or a path is needed.')
+
+        self.stockfish = stockfish
+
+        if type(stockfish) == str:
+            self.stockfish = Stockfish(stockfish_color, stockfish)
+        elif type(stockfish) == Stockfish:
+            self.stockfish = stockfish
+
+    def move(self, movement):
+        """ Makes a move.
+        Params:
+            movement: str, Movement in UCI notation (f2f3, g8f6...)
+        """
+        if super().move(movement):
+            print(f"Turn after player: {self.turn}")
+
+            # stockfish move
+            # TODO: Should test if stockfish gave up
+            stockfish_best_move = self.stockfish.best_move(self)
+            self.board.push(chess.Move.from_uci(stockfish_best_move))
+            print(f"Turn after stockfish: {self.turn}")
+        else:
+            print("Wrong movement. Ignored")
+
+    def get_copy(self):
+        return GameStockfish(board=self.board.copy(), stockfish=self.stockfish)
+
+    def tearup(self):
+        """ Free resources. This cannot be done in __del__ as the instances
+        will be intensivily cloned but maintaining the same stockfish AI
+        engine. We don't want it deleted. Should only be called on the end of
+        the program.
+        """
+        self.stockfish.quit()

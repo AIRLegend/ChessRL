@@ -2,7 +2,6 @@ import chess
 import chess.engine
 
 from player import Player
-from game import Game
 
 
 class Stockfish(Player):
@@ -14,7 +13,10 @@ class Stockfish(Player):
         self.engine = chess.engine.SimpleEngine.popen_uci(binary_path)
         self.thinking_time = thinking_time
 
-    def best_move(self, game: Game):
+    def best_move(self, game: 'Game'):  # noqa: E0602, F821
         result = self.engine.play(game.board,
                                   chess.engine.Limit(time=self.thinking_time))
         return result.move.uci()
+
+    def kill(self):
+        self.engine.quit()
