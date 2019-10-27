@@ -91,11 +91,11 @@ class Game(object):
         cairosvg.svg2png(svg, write_to=out)
         image = Image.open(out)
         if save_path is None:
-            # image.show()
-            plt.imshow(image)
-            plt.axis('off')
-            # plt.show()
-            plt.draw()
+            with plt.style.context("seaborn-dark"):
+                fig, ax = plt.subplots(num="game")
+                ax.imshow(image)
+                ax.axis('off')
+                plt.draw()
         else:
             image.save(save_path)
 
@@ -174,7 +174,7 @@ class GameStockfish(Game):
         self.stockfish = stockfish
 
         if type(stockfish) == str:
-            self.stockfish = Stockfish(stockfish_color, stockfish)
+            self.stockfish = Stockfish(stockfish_color, stockfish, thinking_time=0.01)
         elif type(stockfish) == Stockfish:
             self.stockfish = stockfish
 
