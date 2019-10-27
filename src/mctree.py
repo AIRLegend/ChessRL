@@ -2,9 +2,20 @@ import numpy as np
 from game import Game
 from simpolicies import RandomMovePolicy
 from simulation import Simulation
+from player import Player
 
 
 class Node(object):
+    """ Node from a Monte Carlo Tree.
+
+    Attributes:
+        state: Game. Game in a certain state.
+        children: Array. Possible game states after applying the legal moves to
+        the current state.
+        parent: Node. Parent state of the current game.
+        value: float. Expected reward of this node.
+        visits: int. Number of times the node has been visited
+    """
 
     def __init__(self, state: Game, parent=None):
         self.state = state
@@ -22,8 +33,7 @@ class Node(object):
         return self.parent is not None
 
     def get_ucb1(self):
-        # children_values = [c.get_value() for c in self.children]
-        # return np.mean(children_values)
+        """ returns the UCB1 metric of the node. """
         C = 2
         value = 0
         if self.visits == 0:
@@ -50,8 +60,14 @@ class Tree(object):
 
         self.root.visits = 1
 
-    def select(self, agent, max_iters=200):
-        """ Explores and selects the best next state to choose.
+    def select(self, agent: Player, max_iters=200):
+        """ Explores and selects the best next state to choose from the root
+        state
+
+        Parameters:
+            agent: Player. Agent which will be used in the simulations agaisnt
+            stockfish (the neural network).
+            max_iters: int. Number of interations to run the algorithm.
         """
         current_node = self.root
         i = 0
@@ -87,6 +103,15 @@ class Tree(object):
         return self.root.children[max_val].state.board.move_stack[-2]
 
     def expand(self, node):
+        """
+        From a given state (node), adds to itself all its children
+        (game states after all the possible legal game moves are applied).
+        Note that this process makes a move and assume that the game oponent
+        moves after our move, resulting in the new state.
+
+        Parameters:
+            node: Node. Node which will be expanded.
+        """
         legal_moves = [m for m in node.state.get_legal_moves()]
         new_states = []
         for m in legal_moves:
@@ -96,8 +121,15 @@ class Tree(object):
 
         node.children = [Node(s, parent=node) for s in new_states]
 
-    def simulate(self, node, agent):
-        """ Rollout from the current node until a final state. """
+    def simulate(self, node: Node, agent: Player):
+        """ Rollout from the current node until a final state.
+
+        Parameters:
+            node: Node. Game state from which the simulation will be run.
+            agent: Agent. that will be used to play the games (our Neural net).
+        Returns:
+            results_sim: float, Result of the simulations
+        """
         sim_pol = RandomMovePolicy()
         sim = Simulation(agent, node.state.get_copy(), sim_pol)
         results_sim = sim.run(max_moves=200)  # []
@@ -105,7 +137,15 @@ class Tree(object):
         # results_sim.append(sim.run(max_moves=100))
         return results_sim
 
-    def backprop(self, node, value):
+    def backprop(self, node: Node, value:float):
+        """ Backpropagation phase of the algorithm.
+
+        Parameters:
+            node: Node. that will be added 1 to vi and the value obtained in
+            the simulation process.
+            value: float, value that will be added to all of the ancestors
+            untill root.
+        """
         node.visits += 1
         node.value += value
 
