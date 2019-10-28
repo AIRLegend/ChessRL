@@ -1,6 +1,5 @@
 import chess
 import chess.svg
-import numpy as np
 import cairosvg
 
 from io import BytesIO
@@ -17,12 +16,6 @@ class Game(object):
             self.board = chess.Board()
         else:
             self.board = board
-
-    def _switch_turn(self):
-        """ Used to force the turn change. This is not necessary.
-        TODO: Maybe remove it
-        """
-        self.board.turn = True if self.board.turn else False
 
     def move(self, movement):
         """ Makes a move.
