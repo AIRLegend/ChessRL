@@ -19,8 +19,11 @@ class Agent(Player):
         self.current_tree = None
 
     def best_move(self, game:'Game') -> str:  # noqa: E0602, F821
-        self.current_tree = mctree.Tree(game)
-        return self.current_tree.select(self, 10)
+        best_move = None
+        if game.get_result is None:
+            self.current_tree = mctree.Tree(game)
+            best_move = self.current_tree.select(self, 10)
+        return best_move
 
     def predict_outcome(self, game:'Game') -> float:  # noqa: E0602, F821
         game_matr = netencoder.get_game_state(game)
