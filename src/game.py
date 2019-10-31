@@ -88,7 +88,7 @@ class Game(object):
                 fig, ax = plt.subplots(num="game")
                 ax.imshow(image)
                 ax.axis('off')
-                plt.draw()
+                fig.canvas.draw_idle()
         else:
             image.save(save_path)
 
