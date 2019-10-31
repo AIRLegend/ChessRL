@@ -13,18 +13,21 @@ def draw_tree(tree: Tree):
 
     pos = graphviz_layout(g, prog='dot')
 
-    plt.title("MCST visualization")
-    plt.style.use('dark_background')
-    nx.draw_networkx(g,
-                     pos,
-                     labels=labels_dict,
-                     with_labels=True,
-                     #node_color='skyblue',
-                     cmap='fire',
-                     edge_color='gray',
-                     font_color='white',
-                     font_size=9,
-                     arrows=True)
+    with plt.style.context("dark_background"):
+        plt.figure(num="MCT-viz")
+        plt.title("MCT visualization")
+        nx.draw_networkx(g,
+                         pos,
+                         labels=labels_dict,
+                         with_labels=True,
+                         node_color='gray',
+                         cmap='fire',
+                         edge_color='gray',
+                         font_color='w',
+                         font_size=9,
+                         node_size=60,
+                         arrows=True)
+        plt.show()
 
 
 def __add_node(graph: nx.DiGraph, node: Node, labels_dict: dict):

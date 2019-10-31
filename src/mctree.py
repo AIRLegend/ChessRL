@@ -32,7 +32,7 @@ class Node(object):
 
     @property
     def is_root(self):
-        return self.parent is not None
+        return self.parent is None
 
     def get_ucb1(self):
         """ returns the UCB1 metric of the node. """
@@ -53,8 +53,12 @@ class Node(object):
         C = 2
         #     PUCT
         #     value = vi + c * p(s,a) * (sqrt(N)/1+ni)
-        value = self.value +\
-            C * self.prior * (np.sqrt(self.parent.visits) / 1 + self.visits)
+        value = 0
+        if self.is_root:
+            value = 99999999999  # Infinite to avoid division by 0
+        else:
+            value = self.value +\
+                C * self.prior * (np.sqrt(self.parent.visits) / 1 + self.visits)
         return value
 
     def evaluate(self, evaluator):
@@ -99,11 +103,12 @@ class Tree(object):
                     res = self.simulate(current_node, agent)
                     self.backprop(current_node, res)
                 else:  # Is not new
-                    self.expand(current_node)
+                    self.expand(current_node, agent)
                     res = current_node.value
                     try:
+                        # import pdb; pdb.set_trace()
                         max_child = np.argmax([x.value for x in
-                                               current_node.get_ucb1()])
+                                               current_node.children])
                         current_node = current_node.children[max_child]
                         res = self.simulate(current_node, agent)
                     except ValueError:  # If there were no children
@@ -113,12 +118,12 @@ class Tree(object):
                     # Return to root (finish cycle)
                     current_node = self.root
             else:
-                ucbs = [u.get_ucb1() for u in current_node.children]
+                ucbs = [u.get_value() for u in current_node.children]
                 best_child = np.argmax(ucbs)
                 current_node = current_node.children[best_child]
 
         # Select the highest confidence one.
-        max_val = np.argmax([v.get_ucb1() for v in self.root.children])
+        max_val = np.argmax([v.get_value() for v in self.root.children])
         # After the last play the oponent has played, so we use the before last
         return self.root.children[max_val].state.board.move_stack[-2]
 
@@ -143,10 +148,11 @@ class Tree(object):
 
         # If there is an agent, we calculate the prior probabilities
         # of selecting each possible move.
-        if not agent:
+        if agent:
             # Returns policy distribution for LEGAL moves
+            print(node.state)
             pi = agent.predict_policy(node.state)
-            for i, c in enumerate(no_policyde.children):
+            for i, c in enumerate(node.children):
                 c.prior = pi[i]
 
     def simulate(self, node: Node, agent: Player):

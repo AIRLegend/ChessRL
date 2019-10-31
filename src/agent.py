@@ -15,9 +15,12 @@ class Agent(Player):
         self.move_encodings = netencoder.get_uci_labels()
         self.uci_dict = {u: i for i, u in enumerate(self.move_encodings)}
 
+        # DEBUG purposes
+        self.current_tree = None
+
     def best_move(self, game:'Game') -> str:  # noqa: E0602, F821
-        mcts = mctree.Tree(game)
-        pass
+        self.current_tree = mctree.Tree(game)
+        return self.current_tree.select(self, 10)
 
     def predict_outcome(self, game:'Game') -> float:  # noqa: E0602, F821
         game_matr = netencoder.get_game_state(game)
