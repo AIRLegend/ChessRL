@@ -1,7 +1,7 @@
 import numpy as np
 from game import Game
-from simpolicies import RandomMovePolicy
-from simulation import Simulation
+# from simpolicies import RandomMovePolicy
+# from simulation import Simulation
 from player import Player
 
 
@@ -15,6 +15,7 @@ class Node(object):
         parent: Node. Parent state of the current game.
         value: float. Expected reward of this node.
         visits: int. Number of times the node has been visited
+        prior: float.
     """
 
     def __init__(self, state: Game, parent=None):
@@ -23,6 +24,7 @@ class Node(object):
         self.parent = parent
         self.value = 0
         self.visits = 0
+        self.prior = 1
 
     @property
     def is_leaf(self):
@@ -39,10 +41,28 @@ class Node(object):
         if self.visits == 0:
             value = 99999999999  # Infinite to avoid division by 0
         else:
+            # Vanilla MCTS
             # Return ucb1 score = vi + c * sqrt(log(N)/ni)
             value = self.value / self.visits + C * \
                 np.sqrt(np.log(self.parent.visits) / self.visits)
         return value
+
+    def get_value(self):
+        """ returns the Q + U metric of the node. (using the prior probability
+        given by the neural network.)"""
+        C = 2
+        #     PUCT
+        #     value = vi + c * p(s,a) * (sqrt(N)/1+ni)
+        value = self.value +\
+            C * self.prior * (np.sqrt(self.parent.visits) / 1 + self.visits)
+        return value
+
+    def evaluate(self, evaluator):
+        """ Uses a evaluator to get/set the prior probability of taking this
+        node given the parent.
+        """
+        # TODO: We must set value / visits / prior
+        pass
 
 
 class Tree(object):
@@ -102,7 +122,7 @@ class Tree(object):
         # After the last play the oponent has played, so we use the before last
         return self.root.children[max_val].state.board.move_stack[-2]
 
-    def expand(self, node):
+    def expand(self, node, agent=None):
         """
         From a given state (node), adds to itself all its children
         (game states after all the possible legal game moves are applied).
@@ -121,6 +141,14 @@ class Tree(object):
 
         node.children = [Node(s, parent=node) for s in new_states]
 
+        # If there is an agent, we calculate the prior probabilities
+        # of selecting each possible move.
+        if not agent:
+            # Returns policy distribution for LEGAL moves
+            pi = agent.predict_policy(node.state)
+            for i, c in enumerate(no_policyde.children):
+                c.prior = pi[i]
+
     def simulate(self, node: Node, agent: Player):
         """ Rollout from the current node until a final state.
 
@@ -130,14 +158,15 @@ class Tree(object):
         Returns:
             results_sim: float, Result of the simulations
         """
-        sim_pol = RandomMovePolicy()
-        sim = Simulation(agent, node.state.get_copy(), sim_pol)
-        results_sim = sim.run(max_moves=200)  # []
-        # TODO: N simulations
-        # results_sim.append(sim.run(max_moves=100))
-        return results_sim
+        # VANILLA
+        # sim_pol = RandomMovePolicy()
+        # sim = Simulation(agent, node.state.get_copy(), sim_pol)
+        # results_sim = sim.run(max_moves=200)  # []
 
-    def backprop(self, node: Node, value:float):
+        # NEURAL NET
+        return agent.predict_outcome(node.state)
+
+    def backprop(self, node: Node, value: float):
         """ Backpropagation phase of the algorithm.
 
         Parameters:

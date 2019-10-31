@@ -3,21 +3,21 @@ This module contains the neural network model used by the agent to make
 decisions.
 """
 
+import tensorflow as tf
 
 from tensorflow import keras as k
 
 
 class Model(object):
 
-    def __init__(self):
+    def __init__(self, compile_model=True):
         """
         Creates the model. This code builds a ResNet that will act as both
         the policy and value network (see AlphaZero paper for more info).
         """
-        inp = k.layers.Input((126, 8, 8))
+        inp = k.layers.Input((8, 8, 126))
 
         x = k.layers.Conv2D(filters=5, kernel_size=5, padding='same',
-                            data_format='channels_first',
                             kernel_regularizer='l2')(inp)
 
         for i in range(3):
@@ -25,7 +25,6 @@ class Model(object):
 
         # Policy Head
         pol_head = k.layers.Conv2D(filters=2, kernel_size=1, padding='valid',
-                                   data_format='channels_first',
                                    kernel_regularizer='l2')(x)
         pol_head = k.layers.BatchNormalization(axis=-1)(pol_head)
         pol_head = k.layers.Activation("relu")(pol_head)
@@ -36,7 +35,6 @@ class Model(object):
 
         # Value Head
         val_head = k.layers.Conv2D(filters=4, kernel_size=1, padding='valid',
-                                   data_format='channels_first',
                                    kernel_regularizer='l2')(x)
         val_head = k.layers.BatchNormalization(axis=-1)(val_head)
         val_head = k.layers.Activation("relu")(val_head)
@@ -47,15 +45,35 @@ class Model(object):
 
         self.model = k.Model(inp, [pol_head, val_head], name='chessnet')
 
+        if compile_model:
+            self.model.compile(k.optimizers.Adam(lr=0.002), loss=self.__loss)
+
+    def predict(self, inp):
+        return self.model.predict(inp)
+
+    def load_weights(self, path):
+        pass
+
+    def save_weights(self, path):
+        pass
+
+    def train(self, game_state, game_outcome, next_action):
+        pass
+
+    def __loss(self, y_true, y_pred):
+        policy_pred, val_pred = y_pred
+        policy_true, val_true = y_true
+
+        return k.losses.MSE(val_true, val_pred) - \
+            k.losses.categorical_crossentropy(policy_true, policy_pred)
+
     def __res_block(self, block_input):
         """ Builds a residual block """
         x = k.layers.Conv2D(filters=5, kernel_size=3, padding="same",
-                            data_format="channels_first",
                             kernel_regularizer='l2')(block_input)
         x = k.layers.BatchNormalization(axis=-1)(x)
         x = k.layers.Activation("relu")(x)
         x = k.layers.Conv2D(filters=5, kernel_size=3, padding="same",
-                            data_format="channels_first",
                             kernel_regularizer='l2')(x)
         x = k.layers.BatchNormalization(axis=-1)(x)
         x = k.layers.Add()([block_input, x])
