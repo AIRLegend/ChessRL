@@ -10,7 +10,7 @@ from tensorflow import keras as k
 
 class Model(object):
 
-    def __init__(self, compile_model=True):
+    def __init__(self, compile_model=True, weights=None):
         """
         Creates the model. This code builds a ResNet that will act as both
         the policy and value network (see AlphaZero paper for more info).
@@ -29,7 +29,7 @@ class Model(object):
         pol_head = k.layers.BatchNormalization(axis=-1)(pol_head)
         pol_head = k.layers.Activation("relu")(pol_head)
         pol_head = k.layers.Flatten()(pol_head)
-        pol_head = k.layers.Dense(1698, kernel_regularizer='l2',
+        pol_head = k.layers.Dense(1968, kernel_regularizer='l2',
                                   activation='softmax',
                                   name='policy_out')(pol_head)
 
@@ -45,24 +45,29 @@ class Model(object):
 
         self.model = k.Model(inp, [pol_head, val_head], name='chessnet')
 
+        if weights:
+            self._load_weights(weights)
+
         if compile_model:
-            self.model.compile(k.optimizers.Adam(lr=0.002), loss=self.__loss)
+            self.model.compile(k.optimizers.Adam(lr=0.002),
+                               loss=['categorical_crossentropy',
+                                     'mean_squared_error'])
 
     def predict(self, inp):
         return self.model.predict(inp)
 
-    def load_weights(self, path):
-        pass
+    def load_weights(self, weights_path):
+        self.model.load_weights(weights_path)
 
-    def save_weights(self, path):
-        pass
+    def save_weights(self, weights_path):
+        self.model.save_weights(weights_path)
 
     def train(self, game_state, game_outcome, next_action):
         pass
 
     def __loss(self, y_true, y_pred):
-        policy_pred, val_pred = y_pred
-        policy_true, val_true = y_true
+        policy_pred, val_pred = y_pred[0], y_pred[1]
+        policy_true, val_true = y_true[0], y_true[1]
 
         return k.losses.MSE(val_true, val_pred) - \
             k.losses.categorical_crossentropy(policy_true, policy_pred)
