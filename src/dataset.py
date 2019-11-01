@@ -5,36 +5,29 @@ import json
 
 class DatasetGame(object):
     """
-    Game records to train a neural
+    This class holds several games and provides operations to
+    serialize/deserialize them as a JSON file. Also, it takes a game and
+    returns it as the expanded game.
     """
     def __init__(self):
         self.games = []
 
-    def get_data(self):
-        """ For each game in the dataset, it expands it by cloning it and
-        adding a movement (1 Game -> N games each one adding one more
-        movement)
-        """
-        games_aug = []
-
-        for g in self.games:
-            games_aug.extend(self.augment_game(g))
-        return games_aug
-
     def augment_game(self, game):
+        """ Expands a game. For the N movements of a game, it creates
+        N games with each state + the final result of the original game +
+        the next movement (in each state).
+        """
         hist = game.get_history()
         moves = hist['moves']
         result = hist['result']
-        p_color = hist['player_color']
+        # p_color = hist['player_color']
 
-        if result is None:
-            result = 0
-
-        # start = -1 if p_color else 0
+        # if result is None:
+        #     result = 0
 
         augmented = []
 
-        g = Game(player_color=p_color)
+        g = Game()
 
         for m in moves:
             augmented.append({'game': g,
@@ -62,6 +55,7 @@ class DatasetGame(object):
             json.dump(games, f)
 
     def __add__(self, other):
+        """ Appends a game (or another Dataset) to this one"""
         if isinstance(other, Game):
             self.games.append(other)
         elif isinstance(other, DatasetGame):
@@ -70,8 +64,8 @@ class DatasetGame(object):
         return self
 
     def __iad__(self, other):
+        """ Appends a game (or another Dataset) to this one"""
         return self.__add__(other)
 
     def __len__(self):
-        """ Returns the length of the augmented dataset """
-        return sum([len(g) for g in self.games])
+        return len(self.games)

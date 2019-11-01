@@ -65,6 +65,9 @@ class Model(object):
     def train(self, game_state, game_outcome, next_action):
         pass
 
+    def train_generator(self, generator, epochs=5):
+        self.model.fit_generator(generator, epochs=epochs)
+
     def __loss(self, y_true, y_pred):
         policy_pred, val_pred = y_pred[0], y_pred[1]
         policy_true, val_true = y_true[0], y_true[1]

@@ -131,6 +131,9 @@ def get_uci_labels():
 
 
 class DataGameSequence(Sequence):
+    """ Transforms a Dataset to a Data generator to be fed to the training
+    loop of the neural network.
+    """
 
     def __init__(self, dataset: DatasetGame, batch_size: int = 16):
         self.dataset = dataset
@@ -144,20 +147,21 @@ class DataGameSequence(Sequence):
         batch = self.dataset.games[idx * self.batch_size:
                                    (idx + 1) * self.batch_size]
 
-        batch_x = []  # Board repr
-        batch_y = []  # (policy, value)
+        print(idx)
+
+        batch_x = []  # Board reprs
+        batch_y_policies = []
+        batch_y_values = []
+
         for i in batch:
             i_augmented = self.dataset.augment_game(i)
             batch_x.extend([get_game_state(i_g['game'])
                             for i_g in i_augmented])
-            batch_y.extend(
-                [
-                    (
-                        to_categorical(self.uci_ids[targets['next_move']],
-                                       num_classes=1968),
-                        targets['result']
-                    ) for targets in i_augmented
-                ]
+            batch_y_policies.extend([
+                to_categorical(self.uci_ids[targets['next_move']],
+                               num_classes=1968)
+                for targets in i_augmented]
             )
-
-        return batch_x, batch_y
+            batch_y_values.extend([targets['result']
+                                   for targets in i_augmented])
+        return np.array(batch_x), (np.array(batch_y_policies), np.array(batch_y_values))
