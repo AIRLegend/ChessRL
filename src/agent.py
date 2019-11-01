@@ -36,3 +36,9 @@ class Agent(Player):
             legal_moves = game.get_legal_moves()
             policy = [policy[self.uci_dict[x]] for x in legal_moves]
         return policy
+
+    def train(self, dataset: DatasetGame):
+        """ Trains the model using previous recorded games """
+        pass
+
+

@@ -11,11 +11,12 @@ from stockfish import Stockfish
 
 class Game(object):
 
-    def __init__(self, board=None):
+    def __init__(self, board=None, player_color=chess.WHITE):
         if board is None:
             self.board = chess.Board()
         else:
             self.board = board
+        self.player_color = player_color
 
     def move(self, movement):
         """ Makes a move.
@@ -48,6 +49,19 @@ class Game(object):
             moves = (moves, states)
         return moves
 
+    def get_history(self):
+        moves = [x.uci() for x in self.board.move_stack]
+        res = self.get_result()
+        return {'moves': moves, 'result': res,
+                'player_color': self.player_color}
+        return moves
+
+    def get_fen(self):
+        return self.board.board_fen()
+
+    def set_fen(self, fen):
+        self.board.set_board_fen(fen)
+
     @property
     def turn(self):
         """ Returns whether is white turn."""
@@ -70,6 +84,9 @@ class Game(object):
             else:
                 result = 0  # Draw
         return result
+
+    def __len__(self):
+        return len(self.board.move_stack)
 
     def plot_board(self, save_path=None):
         """ Plots the current state of the board. This is useful for debug/log
@@ -97,12 +114,13 @@ class GameStockfish(Game):
     """ Represents a game agaisnt a Stockfish Agent."""
 
     def __init__(self, stockfish,
-                 stockfish_color=chess.BLACK, board=None):
-        super().__init__(board=board)
+                 player_color=chess.WHITE, board=None):
+        super().__init__(board=board, player_color=player_color)
         if stockfish is None:
             raise ValueError('A Stockfish object or a path is needed.')
 
         self.stockfish = stockfish
+        stockfish_color = not self.player_color
 
         if type(stockfish) == str:
             self.stockfish = Stockfish(stockfish_color, stockfish,

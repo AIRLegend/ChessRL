@@ -6,6 +6,9 @@ with a neural network.
 import numpy as np
 import chess
 
+from tensorflow.keras.utils import Sequence, to_categorical
+from dataset import DatasetGame
+
 
 def _get_pieces_one_hot(board, color=False):
     """ Returns a 3D-matrix representation of the pieces for one color.
@@ -125,3 +128,36 @@ def get_uci_labels():
                 labels_array.append(letter + '2' + l_r + '1' + p)
                 labels_array.append(letter + '7' + l_r + '8' + p)
     return labels_array
+
+
+class DataGameSequence(Sequence):
+
+    def __init__(self, dataset: DatasetGame, batch_size: int = 16):
+        self.dataset = dataset
+        self.batch_size = batch_size
+        self.uci_ids = {u: i for i, u in enumerate(get_uci_labels())}
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, idx):
+        batch = self.dataset.games[idx * self.batch_size:
+                                   (idx + 1) * self.batch_size]
+
+        batch_x = []  # Board repr
+        batch_y = []  # (policy, value)
+        for i in batch:
+            i_augmented = self.dataset.augment_game(i)
+            batch_x.extend([get_game_state(i_g['game'])
+                            for i_g in i_augmented])
+            batch_y.extend(
+                [
+                    (
+                        to_categorical(self.uci_ids[targets['next_move']],
+                                       num_classes=1968),
+                        targets['result']
+                    ) for targets in i_augmented
+                ]
+            )
+
+        return batch_x, batch_y
