@@ -19,7 +19,7 @@ The necessary python packages (ATM) are listed in the requirements file.
 Install them with
 > pip3 install -r requirements.txt
 
-**OPTIONAL**: Appart from those packages, you should have Graphviz installed in your computer if
+**OPTIONAL**: Apart from those packages, you should have Graphviz installed in your computer if
 you want to visualize the Monte Carlo trees.
 
 
