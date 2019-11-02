@@ -3,7 +3,7 @@ import numpy as np
 import netencoder
 
 from player import Player
-from model import Model
+from model import ChessModel
 
 
 class Agent(Player):
@@ -18,7 +18,7 @@ class Agent(Player):
     def __init__(self, color):
         super().__init__(color)
 
-        self.model = Model(compile_model=True)
+        self.model = ChessModel(compile_model=True)
         self.move_encodings = netencoder.get_uci_labels()
         self.uci_dict = {u: i for i, u in enumerate(self.move_encodings)}
 
@@ -32,7 +32,7 @@ class Agent(Player):
             game: Game. Current game before the move of this agent is made.
         """
         best_move = None
-        if game.get_result is None:
+        if game.get_result() is None:
             self.current_tree = mctree.Tree(game)
             best_move = self.current_tree.select(self, 10)
         return best_move

@@ -83,7 +83,8 @@ def get_game_state(game):
     board = game.board
     current = _get_current_game_state(board)
     history = _get_game_history(board)
-    current = np.concatenate((current, history), axis=-1)
+    current_turn = np.full((8, 8, 1), game.turn, dtype=float)  # Curr. turn
+    current = np.concatenate((current, history, current_turn), axis=-1)
     return current
 
 
@@ -146,9 +147,6 @@ class DataGameSequence(Sequence):
     def __getitem__(self, idx):
         batch = self.dataset.games[idx * self.batch_size:
                                    (idx + 1) * self.batch_size]
-
-        print(idx)
-
         batch_x = []  # Board reprs
         batch_y_policies = []
         batch_y_values = []
@@ -164,4 +162,5 @@ class DataGameSequence(Sequence):
             )
             batch_y_values.extend([targets['result']
                                    for targets in i_augmented])
-        return np.array(batch_x), (np.array(batch_y_policies), np.array(batch_y_values))
+        return np.array(batch_x), (np.array(batch_y_policies),
+                                   np.array(batch_y_values))

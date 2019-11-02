@@ -150,7 +150,6 @@ class Tree(object):
         # of selecting each possible move.
         if agent:
             # Returns policy distribution for LEGAL moves
-            print(node.state)
             pi = agent.predict_policy(node.state)
             for i, c in enumerate(node.children):
                 c.prior = pi[i]
