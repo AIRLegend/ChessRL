@@ -34,7 +34,7 @@ class Agent(Player):
         best_move = None
         if game.get_result() is None:
             self.current_tree = mctree.Tree(game)
-            best_move = self.current_tree.select(self, 1000)
+            best_move = self.current_tree.select(self, 10, verbose=False)
         return best_move
 
     def predict_outcome(self, game:'Game') -> float:  # noqa: E0602, F821
@@ -55,3 +55,9 @@ class Agent(Player):
         """ Trains the model using previous recorded games """
         datagen = netencoder.DataGameSequence(dataset, batch_size=1)
         self.model.train_generator(datagen, epochs=epochs)
+
+    def save(self, path):
+        self.model.save_weights(path)
+
+    def load(self, path):
+        self.model.load_weights(path)

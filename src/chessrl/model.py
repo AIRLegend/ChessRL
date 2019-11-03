@@ -8,6 +8,7 @@ from tensorflow.keras.layers import (Dense, Conv2D, BatchNormalization,
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.losses import MSE, categorical_crossentropy
 from tensorflow.keras import Model
+from tensorflow.keras.callbacks import TensorBoard
 
 
 class ChessModel(object):
@@ -22,7 +23,7 @@ class ChessModel(object):
         x = Conv2D(filters=5, kernel_size=5, padding='same',
                    kernel_regularizer='l2')(inp)
 
-        for i in range(3):
+        for i in range(4):
             x = self.__res_block(x)
 
         # Policy Head
@@ -63,10 +64,21 @@ class ChessModel(object):
         self.model.save_weights(weights_path)
 
     def train(self, game_state, game_outcome, next_action):
+        # TODO
         pass
 
-    def train_generator(self, generator, epochs=5):
-        self.model.fit_generator(generator, epochs=epochs)
+    def train_generator(self, generator, epochs=5, logdir=None):
+        callbacks = []
+        if logdir is not None:
+            tensorboard_callback = TensorBoard(log_dir=logdir,
+                                               histogram_freq=0,
+                                               batch_size=1,
+                                               write_graph=True,
+                                               update_freq='epoch')
+            callbacks.append(tensorboard_callback)
+
+        self.model.fit_generator(generator, epochs=epochs,
+                                 callbacks=callbacks)
 
     def __loss(self, y_true, y_pred):
         policy_pred, val_pred = y_pred[0], y_pred[1]

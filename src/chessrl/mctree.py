@@ -85,7 +85,7 @@ class Tree(object):
 
         self.root.visits = 1
 
-    def select(self, agent: Player, max_iters=200, verbose=True):
+    def select(self, agent: Player, max_iters=200, verbose=False):
         """ Explores and selects the best next state to choose from the root
         state
 
@@ -93,6 +93,7 @@ class Tree(object):
             agent: Player. Agent which will be used in the simulations agaisnt
             stockfish (the neural network).
             max_iters: int. Number of interations to run the algorithm.
+            verbose: bool. Whether to print the search status.
         """
         current_node = self.root
         i = 0
@@ -103,7 +104,6 @@ class Tree(object):
             i += 1
             if verbose:
                 pbar.update(1)
-            # print(f"Searching... Iter {i} of {max_iters}")
             if current_node.is_leaf:
                 if current_node.visits == 0:  # Is new
                     res = self.simulate(current_node, agent)
