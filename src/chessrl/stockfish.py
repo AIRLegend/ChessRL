@@ -11,6 +11,7 @@ class Stockfish(Player):
                  thinking_time=0.04):
         super().__init__(color)
         self.engine = chess.engine.SimpleEngine.popen_uci(binary_path)
+
         self.thinking_time = thinking_time
 
     def best_move(self, game: 'Game'):  # noqa: E0602, F821

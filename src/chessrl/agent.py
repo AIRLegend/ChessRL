@@ -34,7 +34,7 @@ class Agent(Player):
         best_move = None
         if game.get_result() is None:
             self.current_tree = mctree.Tree(game)
-            best_move = self.current_tree.select(self, 10, verbose=False)
+            best_move = self.current_tree.select(self, 800, verbose=False)
         return best_move
 
     def predict_outcome(self, game:'Game') -> float:  # noqa: E0602, F821
@@ -51,10 +51,11 @@ class Agent(Player):
             policy = [policy[self.uci_dict[x]] for x in legal_moves]
         return policy
 
-    def train(self, dataset: netencoder.DatasetGame, epochs=2):
+    def train(self, dataset: netencoder.DatasetGame, epochs=2, logdir=None):
         """ Trains the model using previous recorded games """
-        datagen = netencoder.DataGameSequence(dataset, batch_size=1)
-        self.model.train_generator(datagen, epochs=epochs)
+        if len(dataset) > 0:
+            datagen = netencoder.DataGameSequence(dataset, batch_size=1)
+            self.model.train_generator(datagen, epochs=epochs, logdir=logdir)
 
     def save(self, path):
         self.model.save_weights(path)

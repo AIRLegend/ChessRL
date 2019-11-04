@@ -44,7 +44,7 @@ class ChessModel(object):
         val_head = Dense(1, kernel_regularizer='l2', activation='tanh',
                          name='value_out')(val_head)
 
-        self.model = Model(inp, [pol_head, val_head], name='chessnet')
+        self.model = Model(inp, [pol_head, val_head])
 
         if weights:
             self._load_weights(weights)
