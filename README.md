@@ -19,9 +19,23 @@ The necessary python packages (ATM) are listed in the requirements file.
 Install them with
 > pip3 install -r requirements.txt
 
+Also, you need to download the specific 
+[stockfish binary](https://stockfishchess.org/download/) for your platform, put it
+under the `res/stockfish/stockfish-10-64` path and make it executable with `chmod +x
+res/stockfish/stockfish-10-64`
+
 **OPTIONAL**: Apart from those packages, you should have Graphviz installed in your computer if
 you want to visualize the Monte Carlo trees.
 
+### Training
+> **DISCLAIMER:** This is under development and still contains bugs
+
+You can start a training job with
+```bash
+python src/chessrl/training.py ../../data/models/model0 --games=4 --threads=2
+```
+
+This will create 2 threads which will play 4 games generating a dataset of moves, and then, a model will be trained and saved under `../../data/models/model0` directory. If there is a model already saved there, the script will train tnat existing model with the new data.
 
 ### Literature
 
