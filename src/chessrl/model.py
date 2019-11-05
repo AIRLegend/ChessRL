@@ -23,7 +23,7 @@ class ChessModel(object):
         x = Conv2D(filters=5, kernel_size=5, padding='same',
                    kernel_regularizer='l2')(inp)
 
-        for i in range(4):
+        for i in range(8):
             x = self.__res_block(x)
 
         # Policy Head

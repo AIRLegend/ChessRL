@@ -95,7 +95,6 @@ def train(model_dir, games=1, threads=1):
     logger.debug(f"Dataset built. LEN: {len(datas)}")
     logger.info("Loading the agent...")
 
-    return # TODO: Debug
     model_path = get_model_path(model_dir)
     chess_agent = Agent(color=True)
     try:
@@ -127,6 +126,9 @@ def main():
                         default=1,
                         help="Number of threads to play the games"
                         "(default = 1)")
+    parser.add_argument('--train_rounds', metavar='train_rounds', type=int,
+                        default=1,
+                        help="Number of training cycles")
     args = parser.parse_args()
 
     # Setup logger
@@ -140,15 +142,11 @@ def main():
 
     # Recording and saving dataset
     logger.info("Starting training program.")
-    train(args.model_dir,
-          games=args.games,
-          threads=args.threads)
-
-    # Recording and saving dataset
-    #logger.info("Starting training program. 2")
-    #train(args.model_dir,
-    #      games=args.games,
-    #      threads=args.threads)
+    for i in range(args.train_rounds):
+        logger.info(f"Starting round {i} of {args.train_rounds}")
+        train(args.model_dir,
+            games=args.games,
+            threads=args.threads)
 
 
 if __name__ == "__main__":
