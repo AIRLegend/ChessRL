@@ -44,6 +44,12 @@ and then, a model will be trained and saved under `../../data/models/model0`
 directory (repeating that for 10 rounds). If there is a model already saved there, 
 the script will train that existing model with the new data.
 
+For other training options you can execute:
+
+```bash
+python src/chessrl/training.py -h
+```
+
 ### How do I view the progress?
 
 The neural network trainning evolution can be monitored with Tensorboard, simply:
@@ -52,6 +58,10 @@ The neural network trainning evolution can be monitored with Tensorboard, simply
 tensorboard --logdir data/models/model0/train
 ```
 (And set the "Horizontal axis" to "WALL" for viewing all the diferent runs.)
+
+Also, in the same model directory you will find a `gameplays.json` file which
+contains the recorded training games of the model. With this, we can study its
+behaviour over time.
 
 
 ### Literature
