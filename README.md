@@ -17,7 +17,10 @@ converge faster towards an "acceptable" game style than following the AlphaZero 
 ### Requirements
 The necessary python packages (ATM) are listed in the requirements file.
 Install them with
-> pip3 install -r requirements.txt
+
+```bash
+pip3 install -r requirements.txt
+```
 
 Also, you need to download the specific 
 [stockfish binary](https://stockfishchess.org/download/) for your platform, put it
@@ -28,18 +31,32 @@ res/stockfish/stockfish-10-64`
 you want to visualize the Monte Carlo trees.
 
 ### Training
-> **DISCLAIMER:** This is under development and still contains bugs
+> **DISCLAIMER:** This is under development and can still contains bugs or  inefficiencies
 
 You can start a training job with
+
 ```bash
 python src/chessrl/training.py ../../data/models/model0 --games=4 --threads=2
+--train-rounds 10
 ```
+This will create 2 threads which will play 4 games generating a dataset of moves, 
+and then, a model will be trained and saved under `../../data/models/model0` 
+directory (repeating that for 10 rounds). If there is a model already saved there, 
+the script will train that existing model with the new data.
 
-This will create 2 threads which will play 4 games generating a dataset of moves, and then, a model will be trained and saved under `../../data/models/model0` directory. If there is a model already saved there, the script will train tnat existing model with the new data.
+### How do I view the progress?
+
+The neural network trainning evolution can be monitored with Tensorboard, simply:
+
+```bash
+tensorboard --logdir data/models/model0/train
+```
+(And set the "Horizontal axis" to "WALL" for viewing all the diferent runs.)
+
 
 ### Literature
 
 1. Mastering Chess and Shogi by Self-Play with a General Reinforcement Learning
-   Algorithm, Silver, D. et al. [https://arxiv.org/pdf/1712.01815.pdf]
-2. Mastering the game of Go without human knowledge. Silver, D. et al. [https://www.nature.com/articles/nature24270.epdf?author_access_token=VJXbVjaSHxFoctQQ4p2k4tRgN0jAjWel9jnR3ZoTv0PVW4gB86EEpGqTRDtpIz-2rmo8-KG06gqVobU5NSCFeHILHcVFUeMsbvwS-lxjqQGg98faovwjxeTUgZAUMnRQ]
+   Algorithm, Silver, D. et al. https://arxiv.org/pdf/1712.01815.pdf
+2. Mastering the game of Go without human knowledge. Silver, D. et al. https://www.nature.com/articles/nature24270.epdf?author_access_token=VJXbVjaSHxFoctQQ4p2k4tRgN0jAjWel9jnR3ZoTv0PVW4gB86EEpGqTRDtpIz-2rmo8-KG06gqVobU5NSCFeHILHcVFUeMsbvwS-lxjqQGg98faovwjxeTUgZAUMnRQ
 
