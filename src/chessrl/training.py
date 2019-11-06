@@ -53,7 +53,7 @@ def play_game(datas: DatasetGame, id):
         time.sleep(random.random())
         chess_agent = Agent(color=agent_is_white)
         game_env = GameStockfish(player_color=agent_is_white,
-                                stockfish='../../res/stockfish-10-64')
+                                 stockfish='../../res/stockfish-10-64')
 
         logger.info(f"Starting game {id}")
 
@@ -145,10 +145,9 @@ def main():
     for i in range(args.train_rounds):
         logger.info(f"Starting round {i} of {args.train_rounds}")
         train(args.model_dir,
-            games=args.games,
-            threads=args.threads)
+              games=args.games,
+              threads=args.threads)
 
 
 if __name__ == "__main__":
-
     main()
