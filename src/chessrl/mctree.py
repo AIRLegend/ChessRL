@@ -1,10 +1,7 @@
 import numpy as np
 from game import Game
-# from simpolicies import RandomMovePolicy
-# from simulation import Simulation
 from player import Player
 from tqdm import tqdm
-from chess import Move
 
 
 class Node(object):
@@ -50,26 +47,22 @@ class Node(object):
         return value
 
     def get_value(self):
-        """ returns the Q + U metric of the node. (using the prior probability
-        given by the neural network.)"""
-        C = 2
-        #     PUCT
-        #     value = vi + c * p(s,a) * (sqrt(N)/1+ni)
+        """Returns the Q + U for the node using the prior probabilities
+        given by the neural network.
+            U \\propto P(s,a)/(1+visits);
+            Q = Expected value/visits
+        Being C a constant which makes the U (exploration part of the
+        equation) more important.
+        """
+        C = 3
         value = 0
         if self.is_root:
             value = 99999999999  # Infinite to avoid division by 0
         else:
-            value = self.value +\
+            value = (self.value / self.visits) +\
                 C * self.prior *\
-                (np.sqrt(self.parent.visits) / 1 + self.visits)
+                    (np.sqrt(self.parent.visits) / (1 + self.visits))
         return value
-
-    def evaluate(self, evaluator):
-        """ Uses a evaluator to get/set the prior probability of taking this
-        node given the parent.
-        """
-        # TODO: We must set value / visits / prior
-        pass
 
 
 class Tree(object):
@@ -114,7 +107,6 @@ class Tree(object):
                     self.expand(current_node, agent)
                     res = current_node.value
                     try:
-                        # import pdb; pdb.set_trace()
                         max_child = np.argmax([x.value for x in
                                                current_node.children])
                         current_node = current_node.children[max_child]
