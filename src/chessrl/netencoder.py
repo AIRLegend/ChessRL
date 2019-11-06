@@ -1,6 +1,7 @@
 """
 Module with all the necessary stuff to encode/decode game states for using them
-with a neural network.
+with a neural network. Also contains a Sequence Generator for fitting a
+DatasetGame to a Model.
 """
 
 import numpy as np
@@ -69,7 +70,7 @@ def _get_game_history(board, T=8):
     return history
 
 
-def get_game_state(game):
+def get_game_state(game, flipped=False):
     """ This method returns the matrix representation of a game with its
     history of moves.
 
@@ -85,6 +86,9 @@ def get_game_state(game):
     history = _get_game_history(board)
     current_turn = np.full((8, 8, 1), game.turn, dtype=float)  # Curr. turn
     current = np.concatenate((current, history, current_turn), axis=-1)
+
+    if flipped:
+        current = np.rot90(current, k=2)
     return current
 
 
@@ -134,12 +138,21 @@ def get_uci_labels():
 class DataGameSequence(Sequence):
     """ Transforms a Dataset to a Data generator to be fed to the training
     loop of the neural network.
+
+    Attributes:
+        dataset: DatasetGame. Dataset of fames
+        batch_size: int. Nb of board representations of each batch
+        uci_ids: dict. Encoding the move UCI labels to one-hot.
+        random_flips: float. Proportion of board representation which will
+                        be flipped 180 degrees.
     """
 
-    def __init__(self, dataset: DatasetGame, batch_size: int = 16):
+    def __init__(self, dataset: DatasetGame, batch_size: int = 16,
+                 random_flips=0.0):
         self.dataset = dataset
         self.batch_size = batch_size
         self.uci_ids = {u: i for i, u in enumerate(get_uci_labels())}
+        self.random_flips = random_flips
 
     def __len__(self):
         return len(self.dataset)
@@ -153,7 +166,9 @@ class DataGameSequence(Sequence):
 
         for i in batch:
             i_augmented = self.dataset.augment_game(i)
-            batch_x.extend([get_game_state(i_g['game'])
+
+            flip = np.random.rand() < self.random_flips
+            batch_x.extend([get_game_state(i_g['game'], flipped=flip)
                             for i_g in i_augmented])
             batch_y_policies.extend([
                 to_categorical(self.uci_ids[targets['next_move']],
