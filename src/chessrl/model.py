@@ -19,9 +19,18 @@ class ChessModel(object):
         """
         Creates the model. This code builds a ResNet that will act as both
         the policy and value network (see AlphaZero paper for more info).
+
+        Parameters:
+            compile_model: bool. Whether the model will be compiled on creation
+            weights: str. Path to the neural network weights. After the
+                    creation, the NN will load the weights under that path.
+
+        Attributes:
+            model: Neural net model.
+            __gra = TF Graph. You should not use this externally.
         """
-        self.gra = tf.Graph()
-        with self.gra.as_default():
+        self.__gra = tf.Graph()
+        with self.__gra.as_default():
             inp = Input((8, 8, 127))
 
             x = Conv2D(filters=5, kernel_size=5, padding='same',
@@ -61,23 +70,23 @@ class ChessModel(object):
                                    metrics={'policy_out': 'accuracy'})
 
     def predict(self, inp):
-        with self.gra.as_default():
+        with self.__gra.as_default():
             return self.model.predict(inp)
 
     def load_weights(self, weights_path):
-        with self.gra.as_default():
+        with self.__gra.as_default():
             self.model.load_weights(weights_path)
 
     def save_weights(self, weights_path):
-        with self.gra.as_default():
+        with self.__gra.as_default():
             self.model.save_weights(weights_path)
 
     def train(self, game_state, game_outcome, next_action):
-        # TODO
+        # TODO: Train single sample
         pass
 
     def train_generator(self, generator, epochs=5, logdir=None):
-        with self.gra.as_default():
+        with self.__gra.as_default():
             callbacks = []
             if logdir is not None:
                 tensorboard_callback = TensorBoard(log_dir=logdir,
