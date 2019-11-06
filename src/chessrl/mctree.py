@@ -4,6 +4,7 @@ from game import Game
 # from simulation import Simulation
 from player import Player
 from tqdm import tqdm
+from chess import Move
 
 
 class Node(object):
@@ -59,7 +60,8 @@ class Node(object):
             value = 99999999999  # Infinite to avoid division by 0
         else:
             value = self.value +\
-                C * self.prior * (np.sqrt(self.parent.visits) / 1 + self.visits)
+                C * self.prior *\
+                (np.sqrt(self.parent.visits) / 1 + self.visits)
         return value
 
     def evaluate(self, evaluator):
@@ -133,7 +135,14 @@ class Tree(object):
         # Select the highest confidence one.
         max_val = np.argmax([v.get_value() for v in self.root.children])
         # After the last play the oponent has played, so we use the before last
-        return self.root.children[max_val].state.board.move_stack[-2]
+        b_mov = Game.NULL_MOVE
+        try:
+            b_mov = self.root.children[max_val].state.board.move_stack[-2]
+        except IndexError:
+            # Should get here if it is not the agent's turn. For example, at
+            # the first turn if the agent plays blacks.
+            pass
+        return b_mov
 
     def expand(self, node, agent=None):
         """

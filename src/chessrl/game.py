@@ -11,6 +11,8 @@ from stockfish import Stockfish
 
 class Game(object):
 
+    NULL_MOVE = chess.Move.from_uci('0000')
+
     def __init__(self, board=None, player_color=chess.WHITE):
         if board is None:
             self.board = chess.Board()

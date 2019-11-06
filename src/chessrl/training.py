@@ -48,7 +48,8 @@ def play_game(datas: DatasetGame, id):
     """
     logger = logging.getLogger("chessrl-train")
 
-    agent_is_white = True
+    agent_is_white = True if random.random() <= .5 else False
+
     try:
         time.sleep(random.random())
         chess_agent = Agent(color=agent_is_white)
@@ -94,6 +95,8 @@ def train(model_dir, games=1, threads=1):
 
     logger.debug(f"Dataset built. LEN: {len(datas)}")
     logger.info("Loading the agent...")
+
+    return
 
     model_path = get_model_path(model_dir)
     chess_agent = Agent(color=True)
