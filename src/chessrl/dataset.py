@@ -20,14 +20,15 @@ class DatasetGame(object):
         hist = game.get_history()
         moves = hist['moves']
         result = hist['result']
-        # p_color = hist['player_color']
+        date = hist['date']
+        p_color = hist['player_color']
 
         # if result is None:
         #     result = 0
 
         augmented = []
 
-        g = Game()
+        g = Game(date=date, player_color=p_color)
 
         for m in moves:
             augmented.append({'game': g,
@@ -44,23 +45,35 @@ class DatasetGame(object):
             games_file = json.load(f)
 
         for item in games_file:
-            g = Game()
+            g = Game(date=item['date'])
             for m in item['moves']:
                 g.move(m)
             self.games.append(g)
 
     def save(self, path):
+        dataset_existent = DatasetGame()
+        try:
+            dataset_existent.load(path)
+        except FileNotFoundError:
+            pass
+
+        if len(dataset_existent) > 0:
+            self.append(dataset_existent)
+
         games = [x.get_history() for x in self.games]
         with open(path, 'w') as f:
             json.dump(games, f)
 
-    def __add__(self, other):
+    def append(self, other):
         """ Appends a game (or another Dataset) to this one"""
         if isinstance(other, Game):
             self.games.append(other)
         elif isinstance(other, DatasetGame):
             self.games.extend(other.games)
 
+    def __add__(self, other):
+        """ Appends a game (or another Dataset) to this one"""
+        self.append(other)
         return self
 
     def __iad__(self, other):

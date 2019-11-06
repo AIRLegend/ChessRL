@@ -5,6 +5,7 @@ import cairosvg
 from io import BytesIO
 from PIL import Image
 from matplotlib import pyplot as plt
+from datetime import datetime
 
 from stockfish import Stockfish
 
@@ -13,12 +14,16 @@ class Game(object):
 
     NULL_MOVE = chess.Move.from_uci('0000')
 
-    def __init__(self, board=None, player_color=chess.WHITE):
+    def __init__(self, board=None, player_color=chess.WHITE, date=None):
         if board is None:
             self.board = chess.Board()
         else:
             self.board = board
         self.player_color = player_color
+
+        self.date = date
+        if self.date is None:
+            self.date = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 
     def move(self, movement):
         """ Makes a move.
@@ -54,8 +59,10 @@ class Game(object):
     def get_history(self):
         moves = [x.uci() for x in self.board.move_stack]
         res = self.get_result()
-        return {'moves': moves, 'result': res,
-                'player_color': self.player_color}
+        return {'moves': moves,
+                'result': res,
+                'player_color': self.player_color,
+                'date': self.date}
         return moves
 
     def get_fen(self):
@@ -118,8 +125,10 @@ class GameStockfish(Game):
     """ Represents a game agaisnt a Stockfish Agent."""
 
     def __init__(self, stockfish,
-                 player_color=chess.WHITE, board=None):
-        super().__init__(board=board, player_color=player_color)
+                 player_color=chess.WHITE,
+                 board=None,
+                 date=None):
+        super().__init__(board=board, player_color=player_color, date=date)
         if stockfish is None:
             raise ValueError('A Stockfish object or a path is needed.')
 

@@ -73,7 +73,7 @@ def play_game(datas: DatasetGame, id):
     game_env.tearup()
 
 
-def train(model_dir, games=1, threads=1):
+def train(model_dir, games=1, threads=1, save_plays=True):
     """ Plays N concurrent games, save the results and then trains and saves
     the model.
 
@@ -93,10 +93,11 @@ def train(model_dir, games=1, threads=1):
         for i in range(games):
             executor.submit(play_game, *[datas, i])
 
-    logger.debug(f"Dataset built. LEN: {len(datas)}")
     logger.info("Loading the agent...")
 
-    return
+    if save_plays:
+        logger.info("Storing the train recorded games")
+        datas.save(model_dir + '/gameplays.json')
 
     model_path = get_model_path(model_dir)
     chess_agent = Agent(color=True)
@@ -120,7 +121,8 @@ def main():
     # parser.add_argument('dataset_path', metavar='datasetpath', default=None,
     #                     help="where to store the recorded games dataset.")
     parser.add_argument('model_dir', metavar='modeldir',
-                        help="where to store the trained model and the logs")
+                        help="where to store (and load from)"
+                        "the trained model and the logs")
     # parser.add_argument('--verbose', metavar='verbose', type=int, default=2,
     #           help="Verbosity level: [0=nothing, 1=minimum, 2=all]")
     parser.add_argument('--games', metavar='games', type=int, default=1,
@@ -128,10 +130,13 @@ def main():
     parser.add_argument('--threads', metavar='threads', type=int,
                         default=1,
                         help="Number of threads to play the games"
-                        "(default = 1)")
+                        " (default = 1)")
     parser.add_argument('--train_rounds', metavar='train_rounds', type=int,
                         default=1,
                         help="Number of training cycles")
+    parser.add_argument('--save_plays',
+                        action='store_false',
+                        help="Whether you want to record the training plays.")
     args = parser.parse_args()
 
     # Setup logger
@@ -149,7 +154,8 @@ def main():
         logger.info(f"Starting round {i} of {args.train_rounds}")
         train(args.model_dir,
               games=args.games,
-              threads=args.threads)
+              threads=args.threads,
+              save_plays=args.save_plays)
 
 
 if __name__ == "__main__":
