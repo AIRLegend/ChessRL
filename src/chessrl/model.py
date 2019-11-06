@@ -57,7 +57,8 @@ class ChessModel(object):
             if compile_model:
                 self.model.compile(Adam(lr=0.002),
                                    loss=['categorical_crossentropy',
-                                         'mean_squared_error'])
+                                         'mean_squared_error'],
+                                   metrics={'policy_out': 'accuracy'})
 
     def predict(self, inp):
         with self.gra.as_default():
