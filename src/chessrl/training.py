@@ -143,6 +143,7 @@ def main():
     console_handler.setFormatter(formatter)
     logger.addHandler(console_handler)
     logger.setLevel(logging.DEBUG)
+    logger.propagate = False
 
     # Recording and saving dataset
     logger.info("Starting training program.")
