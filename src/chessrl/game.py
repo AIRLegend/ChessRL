@@ -137,7 +137,8 @@ class GameStockfish(Game):
 
         if type(stockfish) == str:
             self.stockfish = Stockfish(stockfish_color, stockfish,
-                                       thinking_time=0.005)
+                                       #thinking_time=0.005,
+                                       search_depth=5)
         elif type(stockfish) == Stockfish:
             self.stockfish = stockfish
 
