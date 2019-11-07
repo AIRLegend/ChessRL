@@ -50,21 +50,17 @@ def play_game(datas: DatasetGame, id):
 
     agent_is_white = True if random.random() <= .5 else False
 
-    try:
-        time.sleep(random.random())
-        chess_agent = Agent(color=agent_is_white)
-        game_env = GameStockfish(player_color=agent_is_white,
-                                 stockfish='../../res/stockfish-10-64')
+    chess_agent = Agent(color=agent_is_white)
+    game_env = GameStockfish(player_color=agent_is_white,
+                            stockfish='../../res/stockfish-10-64')
 
-        logger.info(f"Starting game {id}")
+    logger.info(f"Starting game {id}")
 
-        timer_start = timer()
-        while game_env.get_result() is None:
-            agent_move = chess_agent.best_move(game_env).uci()
-            game_env.move(agent_move)
-        timer_end = timer()
-    except Exception:
-        logger.error(traceback.format_exc())
+    timer_start = timer()
+    while game_env.get_result() is None:
+        agent_move = chess_agent.best_move(game_env).uci()
+        game_env.move(agent_move)
+    timer_end = timer()
 
     logger.info(f"Game {id} done. Result: {game_env.get_result()}. "
                 f"took {round(timer_end-timer_start, 2)} secs")
