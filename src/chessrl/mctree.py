@@ -59,7 +59,7 @@ class Node(object):
         if self.is_root:
             value = 99999999999  # Infinite to avoid division by 0
         else:
-            value = (self.value / self.visits) +\
+            value = (self.value / (1 + self.visits)) +\
                 C * self.prior *\
                     (np.sqrt(self.parent.visits) / (1 + self.visits))
         return value
