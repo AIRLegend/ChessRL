@@ -11,10 +11,12 @@ import os
 import traceback
 
 import psutil
-import multiprocessing
+from multiprocessing import Process
 
+from numba import cuda
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
 import tensorflow as tf  # noqa:E402
 
@@ -53,7 +55,7 @@ def get_model_path(directory):
     return path
 
 
-def play_game(id: int):
+def play_game_job(id: int):
     """ Plays a game and store the results in datas.
 
     Parameters:
@@ -86,7 +88,26 @@ def play_game(id: int):
 
     datas.append(game_env)
     game_env.tearup()
+    #tf.keras.backend.clear_session()
     return str(datas)
+
+def train_job(model_dir, dataset_string):
+    logger = Logger.get_instance()
+
+    process_initializer()
+
+    datas = DatasetGame()
+    datas.loads(dataset_string)
+    model_path = get_model_path(model_dir)
+    logger.info("Loading the agent...")
+    chess_agent = Agent(color=True)
+    try:
+        chess_agent.load(model_path)
+    except OSError:
+        logger.warning("Model not found, starting a fresh one.")
+    chess_agent.train(datas, logdir=model_dir)
+    logger.info("Saving the agent...")
+    chess_agent.save(model_path)
 
 
 def train(model_dir, games=1, workers=1, save_plays=True):
@@ -97,7 +118,7 @@ def train(model_dir, games=1, workers=1, save_plays=True):
         model_dir: str. Directory where the neural net weights and training
             logs will be saved.
         games: number of games that will be played before training the model.
-        threads: number of concurrent games (workers which will play the games)
+        workers: number of concurrent games (workers which will play the games)
     """
     logger = Logger.get_instance()
 
@@ -109,7 +130,7 @@ def train(model_dir, games=1, workers=1, save_plays=True):
             as executor:
         results = []
         for i in range(games):
-            results.append(executor.submit(play_game, *[i]))
+            results.append(executor.submit(play_game_job, *[i]))
 
         for r in results:
             di = DatasetGame()
@@ -120,37 +141,39 @@ def train(model_dir, games=1, workers=1, save_plays=True):
         logger.info("Storing the train recorded games")
         datas.save(model_dir + '/gameplays.json')
 
-    logger.info("Loading the agent...")
 
-    model_path = get_model_path(model_dir)
-    chess_agent = Agent(color=True)
-    try:
-        chess_agent.load(model_path)
-    except OSError:
-        logger.warning("Model not found, starting a fresh one.")
+    p = Process(target=train_job, args=(model_dir, str(datas),))
+    p.start()
+    p.join()
+
+    #model_path = get_model_path(model_dir)
+    #chess_agent = Agent(color=True)
+    #try:
+    #    chess_agent.load(model_path)
+    #except OSError:
+    #    logger.warning("Model not found, starting a fresh one.")
 
     # Train the model
-    logger.info("Training the agent...")
-    chess_agent.train(datas, logdir=model_dir)
+    #logger.info("Training the agent...")
+    #chess_agent.train(datas, logdir=model_dir)
 
     # save model
-    logger.info("Saving the agent...")
-    chess_agent.save(model_path)
+    #logger.info("Saving the agent...")
+    #chess_agent.save(model_path)
+    # tf.keras.backend.clear_session()
 
     # Free up memory
-    tf.keras.backend.clear_session()
+    # cuda.select_device(0)
+    # cuda.close()
+    # tf.keras.backend.clear_session()
 
 
 def main():
     parser = argparse.ArgumentParser(description="Plays some chess games,"
                                      "stores the result and trains a model.")
-    # parser.add_argument('dataset_path', metavar='datasetpath', default=None,
-    #                     help="where to store the recorded games dataset.")
     parser.add_argument('model_dir', metavar='modeldir',
                         help="where to store (and load from)"
                         "the trained model and the logs")
-    # parser.add_argument('--verbose', metavar='verbose', type=int, default=2,
-    #           help="Verbosity level: [0=nothing, 1=minimum, 2=all]")
     parser.add_argument('--games', metavar='games', type=int, default=1,
                         help="Number of games to play (default 1)")
     parser.add_argument('--workers', metavar='workers', type=int,

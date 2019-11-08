@@ -34,32 +34,32 @@ class ChessModel(object):
             inp = Input((8, 8, 127))
 
             x = Conv2D(filters=128, kernel_size=3, strides=1, padding='same',
-                       kernel_regularizer='l2')(inp)
+                        kernel_regularizer='l2')(inp)
 
             for i in range(10):
                 x = self.__res_block(x)
 
             # Policy Head
             pol_head = Conv2D(filters=2, kernel_size=1, padding='valid',
-                              strides=1,
-                              kernel_regularizer='l2')(x)
+                                strides=1,
+                                kernel_regularizer='l2')(x)
             pol_head = BatchNormalization(axis=-1)(pol_head)
             pol_head = Activation("relu")(pol_head)
             pol_head = Flatten()(pol_head)
             pol_head = Dense(1968, kernel_regularizer='l2',
-                             activation='softmax',
-                             name='policy_out')(pol_head)
+                                activation='softmax',
+                                name='policy_out')(pol_head)
 
             # Value Head
             val_head = Conv2D(filters=2,
-                              strides=1,
-                              kernel_size=1, padding='valid',
-                              kernel_regularizer='l2')(x)
+                                strides=1,
+                                kernel_size=1, padding='valid',
+                                kernel_regularizer='l2')(x)
             val_head = BatchNormalization(axis=-1)(val_head)
             val_head = Activation("relu")(val_head)
             val_head = Flatten()(val_head)
             val_head = Dense(1, kernel_regularizer='l2', activation='tanh',
-                             name='value_out')(val_head)
+                                name='value_out')(val_head)
 
             self.model = Model(inp, [pol_head, val_head])
 
@@ -68,9 +68,9 @@ class ChessModel(object):
 
             if compile_model:
                 self.model.compile(Adam(lr=0.002),
-                                   loss=['categorical_crossentropy',
-                                         'mean_squared_error'],
-                                   metrics={'policy_out': 'accuracy'})
+                                    loss=['categorical_crossentropy',
+                                            'mean_squared_error'],
+                                    metrics={'policy_out': 'accuracy'})
 
     def predict(self, inp):
         with self.__gra.as_default():
@@ -93,13 +93,13 @@ class ChessModel(object):
             callbacks = []
             if logdir is not None:
                 tensorboard_callback = TensorBoard(log_dir=logdir,
-                                                   histogram_freq=0,
-                                                   write_graph=True,
-                                                   update_freq='epoch')
+                                                    histogram_freq=0,
+                                                    write_graph=True,
+                                                    update_freq='epoch')
                 callbacks.append(tensorboard_callback)
 
             self.model.fit_generator(generator, epochs=epochs,
-                                     callbacks=callbacks)
+                                        callbacks=callbacks)
 
     def __loss(self, y_true, y_pred):
         policy_pred, val_pred = y_pred[0], y_pred[1]
