@@ -6,3 +6,5 @@ notebooks
 .ropeproject
 .pyc
 *__pycache__*
+res/stockfish*
+data/*/*

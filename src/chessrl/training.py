@@ -11,8 +11,18 @@ import logging
 import os
 import traceback
 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+import psutil
 
+from tensorflow.keras import backend as K
+
+
+def process_initializer():
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+    import tensorflow as tf
+    physical_devices = tf.config.experimental.list_physical_devices('GPU')
+    if len(physical_devices) > 0: 
+        tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
 def get_model_path(directory):
     """ Finds all the .h5 files (neural net weights) and returns the path to
@@ -56,19 +66,23 @@ def play_game(datas: DatasetGame, id):
 
     logger.info(f"Starting game {id}")
 
-    timer_start = timer()
-    while game_env.get_result() is None:
-        agent_move = chess_agent.best_move(game_env).uci()
-        game_env.move(agent_move)
-    timer_end = timer()
+    try:
+        timer_start = timer()
+        while game_env.get_result() is None:
+            agent_move = chess_agent.best_move(game_env).uci()
+            game_env.move(agent_move)
+        timer_end = timer()
 
-    logger.info(f"Game {id} done. Result: {game_env.get_result()}. "
-                f"took {round(timer_end-timer_start, 2)} secs")
+        logger.info(f"Game {id} done. Result: {game_env.get_result()}. "
+                    f"took {round(timer_end-timer_start, 2)} secs")
+    except Exception as e:
+        logger.error(traceback.format_exc())
 
     datas += game_env
     game_env.tearup()
 
 
+# @profile
 def train(model_dir, games=1, threads=1, save_plays=True):
     """ Plays N concurrent games, save the results and then trains and saves
     the model.
@@ -85,15 +99,18 @@ def train(model_dir, games=1, threads=1, save_plays=True):
 
     logger.info(f"Set up {games} games distributed over {threads} threads.")
 
-    with concurrent.futures.ThreadPoolExecutor(threads) as executor:
+    with concurrent.futures.ProcessPoolExecutor(threads, 
+            initializer=process_initializer) as executor:
         for i in range(games):
             executor.submit(play_game, *[datas, i])
-
-    logger.info("Loading the agent...")
 
     if save_plays:
         logger.info("Storing the train recorded games")
         datas.save(model_dir + '/gameplays.json')
+
+    logger.info("Loading the agent...")
+
+    return
 
     model_path = get_model_path(model_dir)
     chess_agent = Agent(color=True)
@@ -109,6 +126,9 @@ def train(model_dir, games=1, threads=1, save_plays=True):
     # save model
     logger.info("Saving the agent...")
     chess_agent.save(model_path)
+
+    #Free GPU memory
+    #K.clear_session()
 
 
 def main():
@@ -149,10 +169,13 @@ def main():
     logger.info("Starting training program.")
     for i in range(args.train_rounds):
         logger.info(f"Starting round {i} of {args.train_rounds}")
+        mem_before = psutil.Process().memory_percent()
         train(args.model_dir,
               games=args.games,
               threads=args.threads,
               save_plays=args.save_plays)
+        mem_after = psutil.Process().memory_percent()
+        logger.debug(f"RAM INCREMENT {mem_after - mem_before}")
 
 
 if __name__ == "__main__":
