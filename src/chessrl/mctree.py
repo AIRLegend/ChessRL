@@ -124,8 +124,15 @@ class Tree(object):
 
         if verbose:
             del(pbar)
-        # Select the highest confidence one.
-        max_val = np.argmax([v.get_value() for v in self.root.children])
+        #tau = len(self.root.state.board.move_stack) # TODO: Change
+        tau = 10 
+        # Select argmax π(a|root) proportional to the visit count
+        policy = np.array([np.power(v.visits, 1/tau) for v in self.root.children]) / self.root.visits
+        max_val = np.argmax(policy)
+
+        # Greedy selection
+        # max_val = np.argmax([v.get_value() for v in self.root.children])
+
         # After the last play the oponent has played, so we use the before last
         b_mov = Game.NULL_MOVE
         try:
