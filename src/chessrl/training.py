@@ -11,17 +11,17 @@ import os
 import traceback
 
 import psutil
-from multiprocessing import Process
-
-from numba import cuda
+import multiprocessing
+# from multiprocessing import Process
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'
-
-import tensorflow as tf  # noqa:E402
+# os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
 
 def process_initializer():
+    """ Initializer of the training threads in in order to detect if there
+    is a GPU available and use it. This is needed to initialize TF inside the
+    child process memory space."""
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
     import tensorflow as tf
     physical_devices = tf.config.experimental.list_physical_devices('GPU')
@@ -56,11 +56,11 @@ def get_model_path(directory):
 
 
 def play_game_job(id: int):
-    """ Plays a game and store the results in datas.
+    """ Plays a game and returns the result..
 
     Parameters:
-        datas: DatasetGame. Where the game history will be stored.
-        id: Play ID.
+        id: Play ID (i.e. worker ID).
+    Returns: str. DatasetGame serialized as a string
     """
     logger = Logger.get_instance()
 
@@ -88,10 +88,17 @@ def play_game_job(id: int):
 
     datas.append(game_env)
     game_env.tearup()
-    #tf.keras.backend.clear_session()
     return str(datas)
 
+
 def train_job(model_dir, dataset_string):
+    """ Loads (or creates, if not found) a model from model_dir, trains it
+    and saves the results. This function has to be used inside a child process.
+
+    Parameters:
+        model_dir: str. Directory which contains the model
+        dataset_string: str. DatasetGame serialized as a string.
+    """
     logger = Logger.get_instance()
 
     process_initializer()
@@ -119,6 +126,7 @@ def train(model_dir, games=1, workers=1, save_plays=True):
             logs will be saved.
         games: number of games that will be played before training the model.
         workers: number of concurrent games (workers which will play the games)
+        save_plays: Whether to save the results of the games before training
     """
     logger = Logger.get_instance()
 
@@ -141,31 +149,10 @@ def train(model_dir, games=1, workers=1, save_plays=True):
         logger.info("Storing the train recorded games")
         datas.save(model_dir + '/gameplays.json')
 
-
-    p = Process(target=train_job, args=(model_dir, str(datas),))
+    p = multiprocessing.Process(target=train_job,
+                                args=(model_dir, str(datas),))
     p.start()
     p.join()
-
-    #model_path = get_model_path(model_dir)
-    #chess_agent = Agent(color=True)
-    #try:
-    #    chess_agent.load(model_path)
-    #except OSError:
-    #    logger.warning("Model not found, starting a fresh one.")
-
-    # Train the model
-    #logger.info("Training the agent...")
-    #chess_agent.train(datas, logdir=model_dir)
-
-    # save model
-    #logger.info("Saving the agent...")
-    #chess_agent.save(model_path)
-    # tf.keras.backend.clear_session()
-
-    # Free up memory
-    # cuda.select_device(0)
-    # cuda.close()
-    # tf.keras.backend.clear_session()
 
 
 def main():
