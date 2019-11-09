@@ -9,13 +9,10 @@ import random
 import argparse
 import os
 import traceback
-
 import psutil
 import multiprocessing
-# from multiprocessing import Process
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-# os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
 
 def process_initializer():
@@ -55,11 +52,13 @@ def get_model_path(directory):
     return path
 
 
-def play_game_job(id: int):
+def play_game_job(id: int, model_path):
     """ Plays a game and returns the result..
 
     Parameters:
         id: Play ID (i.e. worker ID).
+        model_path: path to the .h5 model. If it not exists, it will play with a 
+        fresh one.
     Returns: str. DatasetGame serialized as a string
     """
     logger = Logger.get_instance()
@@ -69,6 +68,11 @@ def play_game_job(id: int):
     chess_agent = Agent(color=agent_is_white)
     game_env = GameStockfish(player_color=agent_is_white,
                              stockfish='../../res/stockfish-10-64')
+
+    try:
+        chess_agent.load(model_path)
+    except OSError:
+        logger.warning("Model for play not found, using a random one.")
 
     datas = DatasetGame()
 
@@ -111,7 +115,7 @@ def train_job(model_dir, dataset_string):
     try:
         chess_agent.load(model_path)
     except OSError:
-        logger.warning("Model not found, starting a fresh one.")
+        logger.warning("Model not found, training a fresh one.")
     chess_agent.train(datas, logdir=model_dir)
     logger.info("Saving the agent...")
     chess_agent.save(model_path)
@@ -132,13 +136,15 @@ def train(model_dir, games=1, workers=1, save_plays=True):
 
     datas = DatasetGame()
 
+    model_path = get_model_path(model_dir)
+
     logger.info(f"Set up {games} games distributed over {workers} workers.")
 
     with ProcessPoolExecutor(workers, initializer=process_initializer)\
             as executor:
         results = []
         for i in range(games):
-            results.append(executor.submit(play_game_job, *[i]))
+            results.append(executor.submit(play_game_job, *[i, model_path]))
 
         for r in results:
             di = DatasetGame()
@@ -176,6 +182,7 @@ def main():
     args = parser.parse_args()
 
     logger = Logger.get_instance()
+    logger.set_level(1)
 
     multiprocessing.set_start_method('spawn', force=True)
 
