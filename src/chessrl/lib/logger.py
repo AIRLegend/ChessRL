@@ -40,6 +40,14 @@ class Logger():
     def critical(self, message):
         self.logger.critical(message)
 
+    def set_level(self, level):
+        if level == 0:
+            self.logger.setLevel(logging.DEBUG)
+        elif level == 1:
+            self.logger.setLevel(logging.INFO)
+        elif level == 2:
+            self.logger.setLevel(logging.ERROR)
+
 
 class ColorFormatter(logging.Formatter):
     """ Internal class to make the outputs colored """
