@@ -50,6 +50,14 @@ class DatasetGame(object):
                 g.move(m)
             self.games.append(g)
 
+    def loads(self, string):
+        gamess = json.loads(string)
+        for item in gamess:
+            g = Game(date=item['date'])
+            for m in item['moves']:
+                g.move(m)
+            self.games.append(g)
+
     def save(self, path):
         dataset_existent = DatasetGame()
         try:
@@ -70,6 +78,10 @@ class DatasetGame(object):
             self.games.append(other)
         elif isinstance(other, DatasetGame):
             self.games.extend(other.games)
+
+    def __str__(self):
+        games = [x.get_history() for x in self.games]
+        return json.dumps(games)
 
     def __add__(self, other):
         """ Appends a game (or another Dataset) to this one"""
