@@ -36,13 +36,15 @@ you want to visualize the Monte Carlo trees.
 You can start a training job with
 
 ```bash
-python src/chessrl/training.py ../../data/models/model0 --games=4 --threads=2
+python src/chessrl/training.py ../../data/models/model0 --games=4 --workers=2
 --train-rounds 10
 ```
-This will create 2 threads which will play 4 games generating a dataset of moves, 
+This will create 2 child processes which will play 4 games generating a dataset of moves, 
 and then, a model will be trained and saved under `../../data/models/model0` 
 directory (repeating that for 10 rounds). If there is a model already saved there, 
 the script will train that existing model with the new data.
+
+The script will use a GPU if available, if not, the CPU.
 
 For other training options you can execute:
 
