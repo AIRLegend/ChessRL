@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8" />
+        <title>ChessRL Player</title>
+        <link rel="stylesheet" href="../static/css/chessboard-1.0.0.min.css"> 
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.2/chess.js"></script>
+        <script src="../static/js/chessboard-1.0.0.min.js"></script>
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" crossorigin="anonymous">
+        <link rel="stylesheet" href="../static/css/chess-ui.css">
+    </head>
+    <body>
+        <h1 id='header' > CHESS! ♟️ </h1>
+
+        <div class="grid-container">
+            <div class='board'>
+                <div id="board1"  style="width: 500px"></div><br>
+                <span id="result-span">Result</span><br>
+                <span id="game-date">Game started on</span><br><br>
+            </div> <!-- board-->
+
+            <div class="aside-info">
+                <span id="hist-moves-span">History of moves</span><br>
+                <div id='table-container'>
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th scope="col">Number</th>
+                                <th scope="col">Player</th>
+                                <th scope="col">Move</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body"> </tbody>
+                    </table>
+                </div> <!-- table container -->
+
+                <div id="buttons">
+                    <button type="button" class="btn btn-danger"
+                                          id="reset-btn">Reset Game</button>
+                    <button type="button" class="btn btn-primary"
+                                          id="switch-btn">Switch Color</button>
+                </div> <!-- buttons -->
+
+            </div> <!-- aside info-->
+
+
+        </div> <!-- grid-container-->
+
+        <script src="../static/js/chessrl-ui.js" type="text/javascript"></script>
+
+        <script>
+            initBoard()
+        </script>
+
+    </body>
+</html>

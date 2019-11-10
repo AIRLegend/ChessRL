@@ -1,0 +1,66 @@
+@import url('https://fonts.googleapis.com/css?family=Roboto&display=swap');
+
+body {
+    font-family: Roboto;
+}
+
+h1 {
+    font-size: 3.5em;
+    font-weight: black;
+}
+
+table thead tr th{
+    font-weight: bold;
+    font-size:1.2em;
+}
+
+
+.span-state-end {
+    color: red;
+}
+
+.grid-container {
+    margin-top: 30px;
+    display: grid;
+    grid-template-columns: 450px auto;
+    grid-template-rows: auto;
+    justify-content: space-evenly;
+}
+
+.board {
+    grid-column-start:0;
+    grid-column-end: 1;
+    float: center;
+    /*top: 50%;*/
+}
+
+.aside-info {
+    grid-column-start:1;
+    grid-column-end: 2;
+}
+
+#header {
+    margin-top: 25px;
+    margin-left: 25px;
+}
+
+#result-span {
+    top: 20px;
+    font-size: 1.5em;
+}
+
+#buttons{
+    margin-left: 20%;
+    margin-top: 15px;
+}
+
+#table-container {
+  height: 487px;
+  overflow-y: auto;
+  width: 100%;
+}
+
+#hist-moves-span {
+    font-weight: 700;
+    font-size:1.5em;
+}

@@ -7,7 +7,7 @@ from PIL import Image
 from matplotlib import pyplot as plt
 from datetime import datetime
 
-from stockfish import Stockfish
+from .stockfish import Stockfish
 
 
 class Game(object):

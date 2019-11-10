@@ -1,7 +1,7 @@
 import chess
 import chess.engine
 
-from player import Player
+from .player import Player
 
 
 class Stockfish(Player):
