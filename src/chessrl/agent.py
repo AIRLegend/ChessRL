@@ -2,8 +2,8 @@ import mctree
 import numpy as np
 import netencoder
 
-from player import Player
-from model import ChessModel
+from .player import Player
+from .model import ChessModel
 
 
 class Agent(Player):
@@ -25,16 +25,22 @@ class Agent(Player):
         # TODO: DEBUG purposes
         self.current_tree = None
 
-    def best_move(self, game:'Game') -> str:  # noqa: E0602, F821
+    def best_move(self, game:'Game', real_game=False) -> str:  # noqa: E0602, F821
         """ Finds and returns the best possible move (UCI encoded)
 
         Parameters:
             game: Game. Current game before the move of this agent is made.
+            real_game: Whether to use MCTS or only the neural network (self
+            play vs playing in a real environment).
         """
         best_move = None
-        if game.get_result() is None:
-            self.current_tree = mctree.Tree(game)
-            best_move = self.current_tree.select(self, 900, verbose=False)
+        if real_game:
+            policy = self.predict_policy(game)
+            best_move = game.get_legal_moves()[np.argmax(policy)]
+        else:
+            if game.get_result() is None:
+                self.current_tree = mctree.Tree(game)
+                best_move = self.current_tree.select(self, 900, verbose=False)
         return best_move
 
     def predict_outcome(self, game:'Game') -> float:  # noqa: E0602, F821
