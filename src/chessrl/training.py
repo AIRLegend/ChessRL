@@ -177,10 +177,17 @@ def main():
     parser.add_argument('--save_plays',
                         action='store_false',
                         help="Whether you want to record the training plays.")
+    parser.add_argument('--debug',
+                        action='debug_mode',
+                        help="Log debug messages on screen.")
     args = parser.parse_args()
 
     logger = Logger.get_instance()
     logger.set_level(1)
+
+    if args.debug:
+        logger.set_level(0)
+
 
     multiprocessing.set_start_method('spawn', force=True)
 
