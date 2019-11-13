@@ -81,7 +81,7 @@ class ChessModel(object):
     def train(self, game_state, game_outcome, next_action):
         pass
 
-    def train_generator(self, generator, epochs=5, logdir=None):
+    def train_generator(self, generator, epochs=1, logdir=None):
         callbacks = []
         if logdir is not None:
             tensorboard_callback = TensorBoard(log_dir=logdir,
@@ -90,7 +90,7 @@ class ChessModel(object):
                                                update_freq='epoch')
             callbacks.append(tensorboard_callback)
 
-        self.model.fit_generator(generator, epochs=epochs, verbose=2,
+        self.model.fit_generator(generator, epochs=epochs, verbose=1,
                                  callbacks=callbacks)
 
     def __del__(self):
