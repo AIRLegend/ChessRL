@@ -8,7 +8,6 @@ import numpy as np
 import chess
 
 from tensorflow.keras.utils import Sequence, to_categorical
-from dataset import DatasetGame
 
 
 def _get_pieces_one_hot(board, color=False):
@@ -147,7 +146,7 @@ class DataGameSequence(Sequence):
                         be flipped 180 degrees.
     """
 
-    def __init__(self, dataset: DatasetGame, batch_size: int = 16,
+    def __init__(self, dataset: 'DatasetGame', batch_size: int = 8,
                  random_flips=0.0):
         self.dataset = dataset
         self.batch_size = batch_size
@@ -177,5 +176,6 @@ class DataGameSequence(Sequence):
             )
             batch_y_values.extend([targets['result']
                                    for targets in i_augmented])
+
         return np.array(batch_x), (np.array(batch_y_policies),
                                    np.array(batch_y_values))

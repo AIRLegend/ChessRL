@@ -9,8 +9,7 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.losses import MSE, categorical_crossentropy
 from tensorflow.keras import Model
 from tensorflow.keras.callbacks import TensorBoard
-
-import tensorflow as tf
+from tensorflow.compat.v1.keras import backend as K
 
 
 class ChessModel(object):
@@ -29,77 +28,73 @@ class ChessModel(object):
             model: Neural net model.
             __gra = TF Graph. You should not use this externally.
         """
-        self.__gra = tf.Graph()
-        with self.__gra.as_default():
-            inp = Input((8, 8, 127))
+        inp = Input((8, 8, 127))
 
-            x = Conv2D(filters=128, kernel_size=3, strides=1, padding='same',
-                        kernel_regularizer='l2')(inp)
+        x = Conv2D(filters=128, kernel_size=3, strides=1, padding='same',
+                   kernel_regularizer='l2')(inp)
 
-            for i in range(10):
-                x = self.__res_block(x)
+        for i in range(10):
+            x = self.__res_block(x)
 
-            # Policy Head
-            pol_head = Conv2D(filters=2, kernel_size=1, padding='valid',
-                                strides=1,
-                                kernel_regularizer='l2')(x)
-            pol_head = BatchNormalization(axis=-1)(pol_head)
-            pol_head = Activation("relu")(pol_head)
-            pol_head = Flatten()(pol_head)
-            pol_head = Dense(1968, kernel_regularizer='l2',
-                                activation='softmax',
-                                name='policy_out')(pol_head)
+        # Policy Head
+        pol_head = Conv2D(filters=2, kernel_size=1, padding='valid',
+                          strides=1,
+                          kernel_regularizer='l2')(x)
+        pol_head = BatchNormalization(axis=-1)(pol_head)
+        pol_head = Activation("relu")(pol_head)
+        pol_head = Flatten()(pol_head)
+        pol_head = Dense(1968, kernel_regularizer='l2',
+                         activation='softmax',
+                         name='policy_out')(pol_head)
 
-            # Value Head
-            val_head = Conv2D(filters=2,
-                                strides=1,
-                                kernel_size=1, padding='valid',
-                                kernel_regularizer='l2')(x)
-            val_head = BatchNormalization(axis=-1)(val_head)
-            val_head = Activation("relu")(val_head)
-            val_head = Flatten()(val_head)
-            val_head = Dense(1, kernel_regularizer='l2', activation='tanh',
-                                name='value_out')(val_head)
+        # Value Head
+        val_head = Conv2D(filters=2,
+                          strides=1,
+                          kernel_size=1, padding='valid',
+                          kernel_regularizer='l2')(x)
+        val_head = BatchNormalization(axis=-1)(val_head)
+        val_head = Activation("relu")(val_head)
+        val_head = Flatten()(val_head)
+        val_head = Dense(1, kernel_regularizer='l2', activation='tanh',
+                         name='value_out')(val_head)
 
-            self.model = Model(inp, [pol_head, val_head])
+        self.model = Model(inp, [pol_head, val_head])
 
-            if weights:
-                self._load_weights(weights)
+        if weights:
+            self.model.load_weights(weights)
 
-            if compile_model:
-                self.model.compile(Adam(lr=0.002),
-                                    loss=['categorical_crossentropy',
-                                            'mean_squared_error'],
-                                    metrics={'policy_out': 'accuracy'})
+        if compile_model:
+            self.model.compile(Adam(lr=0.002),
+                               loss=['categorical_crossentropy',
+                                     'mean_squared_error'],
+                               metrics={'policy_out': 'accuracy'})
 
     def predict(self, inp):
-        with self.__gra.as_default():
-            return self.model.predict(inp)
+        return self.model.predict(inp)
 
     def load_weights(self, weights_path):
-        with self.__gra.as_default():
-            self.model.load_weights(weights_path)
+        self.model.load_weights(weights_path)
 
     def save_weights(self, weights_path):
-        with self.__gra.as_default():
-            self.model.save_weights(weights_path)
+        self.model.save_weights(weights_path)
 
     def train(self, game_state, game_outcome, next_action):
-        # TODO: Train single sample
         pass
 
-    def train_generator(self, generator, epochs=5, logdir=None):
-        with self.__gra.as_default():
-            callbacks = []
-            if logdir is not None:
-                tensorboard_callback = TensorBoard(log_dir=logdir,
-                                                    histogram_freq=0,
-                                                    write_graph=True,
-                                                    update_freq='epoch')
-                callbacks.append(tensorboard_callback)
+    def train_generator(self, generator, epochs=1, logdir=None):
+        callbacks = []
+        if logdir is not None:
+            tensorboard_callback = TensorBoard(log_dir=logdir,
+                                               histogram_freq=0,
+                                               write_graph=True,
+                                               update_freq='epoch')
+            callbacks.append(tensorboard_callback)
 
-            self.model.fit_generator(generator, epochs=epochs,
-                                        callbacks=callbacks)
+        self.model.fit_generator(generator, epochs=epochs, verbose=1,
+                                 callbacks=callbacks)
+
+    def __del__(self):
+        K.clear_session()
 
     def __loss(self, y_true, y_pred):
         policy_pred, val_pred = y_pred[0], y_pred[1]

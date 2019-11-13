@@ -1,5 +1,5 @@
 from agent import Agent
-from game import GameStockfish
+from gamestockfish import GameStockfish
 from dataset import DatasetGame
 from timeit import default_timer as timer
 from concurrent.futures import ProcessPoolExecutor
@@ -12,14 +12,14 @@ import traceback
 import psutil
 import multiprocessing
 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'
 
 
 def process_initializer():
     """ Initializer of the training threads in in order to detect if there
     is a GPU available and use it. This is needed to initialize TF inside the
     child process memory space."""
-    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'
     import tensorflow as tf
     physical_devices = tf.config.experimental.list_physical_devices('GPU')
     if len(physical_devices) > 0:
@@ -57,14 +57,13 @@ def play_game_job(id: int, model_path):
 
     Parameters:
         id: Play ID (i.e. worker ID).
-        model_path: path to the .h5 model. If it not exists, it will play with a 
-        fresh one.
+        model_path: path to the .h5 model. If it not exists, it will play with
+        a fresh one.
     Returns: str. DatasetGame serialized as a string
     """
     logger = Logger.get_instance()
 
     agent_is_white = True if random.random() <= .5 else False
-
     chess_agent = Agent(color=agent_is_white)
     game_env = GameStockfish(player_color=agent_is_white,
                              stockfish='../../res/stockfish-10-64')
@@ -74,14 +73,12 @@ def play_game_job(id: int, model_path):
     except OSError:
         logger.warning("Model for play not found, using a random one.")
 
-    datas = DatasetGame()
-
     logger.info(f"Starting game {id}")
 
     try:
         timer_start = timer()
         while game_env.get_result() is None:
-            agent_move = chess_agent.best_move(game_env).uci()
+            agent_move = chess_agent.best_move(game_env, real_game=False)
             game_env.move(agent_move)
         timer_end = timer()
 
@@ -90,9 +87,10 @@ def play_game_job(id: int, model_path):
     except Exception:
         logger.error(traceback.format_exc())
 
-    datas.append(game_env)
+    d = DatasetGame()
+    d.append(game_env)
     game_env.tearup()
-    return str(datas)
+    return str(d)
 
 
 def train_job(model_dir, dataset_string):
@@ -107,8 +105,9 @@ def train_job(model_dir, dataset_string):
 
     process_initializer()
 
-    datas = DatasetGame()
-    datas.loads(dataset_string)
+    data_train = DatasetGame()
+    data_train.loads(dataset_string)
+
     model_path = get_model_path(model_dir)
     logger.info("Loading the agent...")
     chess_agent = Agent(color=True)
@@ -116,7 +115,7 @@ def train_job(model_dir, dataset_string):
         chess_agent.load(model_path)
     except OSError:
         logger.warning("Model not found, training a fresh one.")
-    chess_agent.train(datas, logdir=model_dir)
+    chess_agent.train(data_train, logdir=model_dir, epochs=2)
     logger.info("Saving the agent...")
     chess_agent.save(model_path)
 
@@ -133,30 +132,29 @@ def train(model_dir, games=1, workers=1, save_plays=True):
         save_plays: Whether to save the results of the games before training
     """
     logger = Logger.get_instance()
-
-    datas = DatasetGame()
-
     model_path = get_model_path(model_dir)
 
     logger.info(f"Set up {games} games distributed over {workers} workers.")
 
+    results = []
     with ProcessPoolExecutor(workers, initializer=process_initializer)\
             as executor:
-        results = []
         for i in range(games):
             results.append(executor.submit(play_game_job, *[i, model_path]))
 
-        for r in results:
-            di = DatasetGame()
-            di.loads(r.result())
-            datas.append(di)
+    dataset_games = DatasetGame()
+
+    for r in results:
+        di = DatasetGame()
+        di.loads(r.result())
+        dataset_games.append(di)
 
     if save_plays:
         logger.info("Storing the train recorded games")
-        datas.save(model_dir + '/gameplays.json')
+        dataset_games.save(model_dir + '/gameplays.json')
 
     p = multiprocessing.Process(target=train_job,
-                                args=(model_dir, str(datas),))
+                                args=(model_dir, str(dataset_games),))
     p.start()
     p.join()
 
@@ -179,10 +177,17 @@ def main():
     parser.add_argument('--save_plays',
                         action='store_false',
                         help="Whether you want to record the training plays.")
+    parser.add_argument('--debug',
+                        action='debug_mode',
+                        help="Log debug messages on screen.")
     args = parser.parse_args()
 
     logger = Logger.get_instance()
     logger.set_level(1)
+
+    if args.debug:
+        logger.set_level(0)
+
 
     multiprocessing.set_start_method('spawn', force=True)
 
