@@ -2,7 +2,12 @@ var board1 = null
 
 var lastMove = []
 
-function initBoard() {
+API_ENDPOINT = 'http://localhost:5000'
+
+function initBoard(endpoint) {
+
+    API_ENDPOINT = `http://${endpoint}:5000`
+
     board1 = Chessboard('board1', {
         draggable: true,
         onDrop: onDrop
@@ -12,7 +17,7 @@ function initBoard() {
 
     $.ajax({
         type: "GET",
-        url: 'http://localhost:5000/game',
+        url: API_ENDPOINT+'/game',
         success: handleServerResponse
     })
 
@@ -48,7 +53,7 @@ function sendMove(source, target, promotion=null) {
 
     $.ajax({
         type: "POST",
-        url: 'http://localhost:5000/game/' + source+target,
+        url: API_ENDPOINT + '/game/' + source+target,
         success: handleServerResponse
     })
 }
@@ -148,10 +153,10 @@ function handleChangeColor() {
 function handleResetGame(color = 0){
     $.ajax({
         type: "PUT",
-        url: 'http://localhost:5000/game/'+color
+        url: API_ENDPOINT + '/game/'+color
     }).done(res => $.ajax({
             type: "GET",
-            url: 'http://localhost:5000/game',
+            url: API_ENDPOINT + '/game',
             success: handleServerResponse
         }))
 }

@@ -2,11 +2,12 @@ from flask import Flask, render_template, request, make_response, jsonify
 
 import sys
 import os
+import argparse
 
-def process_initializer():
-    """ Initializer of the training threads in in order to detect if there
-    is a GPU available and use it. This is needed to initialize TF inside the
-    child process memory space."""
+sys.path.append('../chessrl/')
+
+def gpu_initializer():
+    """ This is needed to initialize TF inside the GPU child process memory space."""
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'
     import tensorflow as tf
     physical_devices = tf.config.experimental.list_physical_devices('GPU')
@@ -14,23 +15,23 @@ def process_initializer():
         os.environ['CUDA_VISIBLE_DEVICES'] = '0'
         tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
-process_initializer()
+gpu_initializer()
 
-
-sys.path.append('../chessrl/')
 
 import gamewrapper  # noqa:E402
 
+#Default IP
+IP_ENDPOINT = 'localhost'
+
 app = Flask("Chess")
 
-
-# Init instance
+# Init first instance on the main process
 _ = gamewrapper.GameWrapper.get_instance()
 
 
 @app.route('/')
 def index():
-    return render_template("index.html")
+    return render_template("index.html", endpoint=IP_ENDPOINT)
 
 
 @app.route('/game/<move>', methods=['POST'])
@@ -67,5 +68,20 @@ def change_color(color):
     return "Changed", 200
 
 
+def main():
+    parser = argparse.ArgumentParser(description="Initializes a Flask app which"
+            "serves a web client to play against the agent.")
+    parser.add_argument('ip', metavar='ip', nargs='?', const='localhost',
+            help="Machine (public) ip which serves the app. Default: localhost",
+            default='localhost')
+
+    args = parser.parse_args()
+
+    global IP_ENDPOINT
+    IP_ENDPOINT = args.ip
+
+    app.run(IP_ENDPOINT, debug=True, processes=1, threaded=False)
+
+
 if __name__ == "__main__":
-    app.run('0.0.0.0', debug=True, processes=1, threaded=False)
+    main()
