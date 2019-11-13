@@ -23,8 +23,15 @@ Simply with:
 python run.py
 ```
 
-And navigate to http://localhost:5000
+And navigate to http://localhost:5000.
 
+Please, note thtat this is a very simple implementation, only for debugging purposes. I don't recoment deploying it in its current state. However, if you want to test the server in another machine (or in a private server with GPUs), you have to pass the public IP/private IP /domain of the server, for example:
+
+```bash
+python run.py 192.168.1.12
+
+python run.py mypublicserver.com
+```
 
 ### API specification
 
