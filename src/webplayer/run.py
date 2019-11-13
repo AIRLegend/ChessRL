@@ -48,7 +48,6 @@ def change_color(color):
     if not whites:
         g.move('null move')
 
-    print(f"[TURN], {g.game.turn}")
     return "Changed", 200
 
 
