@@ -1,20 +1,41 @@
 <!DOCTYPE html>
 <html>
     <head>
-        <meta charset="UTF-8" />
-        <title>ChessRL Player</title>
-        <link rel="stylesheet" href="../static/css/chessboard-1.0.0.min.css"> 
+        <title> ChessRL Player </title>
+        
         <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.2/chess.js"></script>
         <script src="../static/js/chessboard-1.0.0.min.js"></script>
-        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" crossorigin="anonymous">
+        <link rel="stylesheet" href="../static/css/chessboard-1.0.0.min.css"> 
+        <link rel="stylesheet"
+        href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"/>
         <link rel="stylesheet" href="../static/css/chess-ui.css">
+    
     </head>
-    <body>
-        <h1 id='header' > CHESS! ♟️ </h1>
 
+    <body>
+
+        <h1 id="header"> CHESS! ♟️</h1>
+
+    
         <div class="grid-container">
+
             <div class='board'>
+                
+            <div class="container-popup" id="promotion">
+                    <h4>Select promotion to:</h4>
+                    <form action="javascript:void(0);">
+                        <select id="promotion-select">
+                                <option value="q">Queen</option>
+                                <option value="b">Bishop</option>
+                                <option value="r">Rook</option>
+                                <option value="k">Knight</option>
+                                <option value="p">Pawn</option>
+                        </select><br>
+                        <button id="button-promotion">OK</button>
+                    </form>
+                </div>
+
                 <div id="board1"  style="width: 500px"></div><br>
                 <span id="result-span">Result</span><br>
                 <span id="game-date">Game started on</span><br><br>

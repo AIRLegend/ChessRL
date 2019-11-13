@@ -1,19 +1,17 @@
-import sys
-sys.path.append('../')
-
-from chessrl.game import GameStockfish  # noqa:E402
+from gameagent import GameAgent  # noqa:E402
 
 
 class GameWrapper(object):
     _wrapper = None
 
     def __init__(self, player_color=True):
-        self.game = GameStockfish('../../res/stockfish-10-64',
-                                  player_color=player_color)
+        self.game = GameAgent('../../data/models/model0/model-0.h5',
+                              player_color=player_color)
 
     def get_instance(player_color=True):
         if GameWrapper._wrapper is None:
             GameWrapper._wrapper = GameWrapper(player_color)
+
         return GameWrapper._wrapper
 
     def destroy_instance():

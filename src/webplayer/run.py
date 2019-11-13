@@ -1,19 +1,24 @@
 from flask import Flask, render_template, request, make_response, jsonify
 
-import gamewrapper
+import sys
+sys.path.append('/Users/air/Documents/Projects/neuralchess/src/chessrl')
+
+import gamewrapper  # noqa:E402
 
 app = Flask("Chess")
 
 
+# Init instance
+_ = gamewrapper.GameWrapper.get_instance()
+
+
 @app.route('/')
 def index():
-    gamewrapper.GameWrapper.get_instance()
     return render_template("index.html")
 
 
 @app.route('/game/<move>', methods=['POST'])
 def user_move(move):
-    # TODO: Suponemos que siempre jugamos con las blancas
     g = gamewrapper.GameWrapper.get_instance()
     g.move(move)
     response = jsonify({'fen': g.fen, 'hist': g.get_history()})
@@ -37,12 +42,15 @@ def change_color(color):
     if color == "0":
         whites = False
     gamewrapper.GameWrapper.destroy_instance()
+
     g = gamewrapper.GameWrapper.get_instance(player_color=whites)
     # The user is blacks, so we force the game start by pushing a null move
     if not whites:
         g.move('null move')
+
+    print(f"[TURN], {g.game.turn}")
     return "Changed", 200
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, processes=1, threaded=False)

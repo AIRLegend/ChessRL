@@ -31,7 +31,6 @@ table thead tr th{
     grid-column-start:0;
     grid-column-end: 1;
     float: center;
-    /*top: 50%;*/
 }
 
 .aside-info {
@@ -63,4 +62,26 @@ table thead tr th{
 #hist-moves-span {
     font-weight: 700;
     font-size:1.5em;
+}
+
+.container-popup {
+    position: absolute;
+    width: 500px;
+    height: 140px;
+    background: rgba(39,35,39,.7);
+    color: white;
+    z-index: 100;
+    padding:20px;
+    top: 300px;
+    display: none;
+}
+
+.container-popup form{
+    margin-left: 40%;
+    right: 50%;
+}
+
+.container-popup form button{
+    margin-left: 8%;
+    margin-top: 4%;
 }
