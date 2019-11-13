@@ -1,7 +1,23 @@
 from flask import Flask, render_template, request, make_response, jsonify
 
 import sys
-sys.path.append('/Users/air/Documents/Projects/neuralchess/src/chessrl')
+import os
+
+def process_initializer():
+    """ Initializer of the training threads in in order to detect if there
+    is a GPU available and use it. This is needed to initialize TF inside the
+    child process memory space."""
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'
+    import tensorflow as tf
+    physical_devices = tf.config.experimental.list_physical_devices('GPU')
+    if len(physical_devices) > 0:
+        os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+        tf.config.experimental.set_memory_growth(physical_devices[0], True)
+
+process_initializer()
+
+
+sys.path.append('../chessrl/')
 
 import gamewrapper  # noqa:E402
 
@@ -52,4 +68,4 @@ def change_color(color):
 
 
 if __name__ == "__main__":
-    app.run(debug=True, processes=1, threaded=False)
+    app.run('0.0.0.0', debug=True, processes=1, threaded=False)
