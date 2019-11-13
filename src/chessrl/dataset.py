@@ -1,4 +1,4 @@
-from game import Game
+import game
 
 import json
 
@@ -12,23 +12,20 @@ class DatasetGame(object):
     def __init__(self):
         self.games = []
 
-    def augment_game(self, game):
+    def augment_game(self, game_base):
         """ Expands a game. For the N movements of a game, it creates
         N games with each state + the final result of the original game +
         the next movement (in each state).
         """
-        hist = game.get_history()
+        hist = game_base.get_history()
         moves = hist['moves']
         result = hist['result']
         date = hist['date']
         p_color = hist['player_color']
 
-        # if result is None:
-        #     result = 0
-
         augmented = []
 
-        g = Game(date=date, player_color=p_color)
+        g = game.Game(date=date, player_color=p_color)
 
         for m in moves:
             augmented.append({'game': g,
@@ -45,18 +42,20 @@ class DatasetGame(object):
             games_file = json.load(f)
 
         for item in games_file:
-            g = Game(date=item['date'])
-            for m in item['moves']:
-                g.move(m)
-            self.games.append(g)
+            g = game.Game(date=item['date'])
+            if len(item['moves']) > 0:
+                for m in item['moves']:
+                    g.move(m)
+                self.games.append(g)
 
     def loads(self, string):
         gamess = json.loads(string)
         for item in gamess:
-            g = Game(date=item['date'])
-            for m in item['moves']:
-                g.move(m)
-            self.games.append(g)
+            g = game.Game(date=item['date'])
+            if len(item['moves']) > 0:
+                for m in item['moves']:
+                    g.move(m)
+                self.games.append(g)
 
     def save(self, path):
         dataset_existent = DatasetGame()
@@ -65,16 +64,15 @@ class DatasetGame(object):
         except FileNotFoundError:
             pass
 
-        if len(dataset_existent) > 0:
-            self.append(dataset_existent)
+        union_games = dataset_existent.games + self.games
 
-        games = [x.get_history() for x in self.games]
+        games = [x.get_history() for x in union_games]
         with open(path, 'w') as f:
             json.dump(games, f)
 
     def append(self, other):
         """ Appends a game (or another Dataset) to this one"""
-        if isinstance(other, Game):
+        if isinstance(other, game.Game):
             self.games.append(other)
         elif isinstance(other, DatasetGame):
             self.games.extend(other.games)

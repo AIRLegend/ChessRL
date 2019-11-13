@@ -1,4 +1,5 @@
 import numpy as np
+
 from game import Game
 from player import Player
 from tqdm import tqdm
@@ -17,7 +18,7 @@ class Node(object):
         prior: float.
     """
 
-    def __init__(self, state: Game, parent=None):
+    def __init__(self, state: 'Game', parent=None):
         self.state = state
         self.children = []
         self.parent = parent
@@ -124,10 +125,10 @@ class Tree(object):
 
         if verbose:
             del(pbar)
-        #tau = len(self.root.state.board.move_stack) # TODO: Change
-        tau = 10 
+        # tau = len(self.root.state.board.move_stack) # TODO: Change
+        tau = 10
         # Select argmax π(a|root) proportional to the visit count
-        policy = np.array([np.power(v.visits, 1/tau) for v in self.root.children]) / self.root.visits
+        policy = np.array([np.power(v.visits, 1 / tau) for v in self.root.children]) / self.root.visits  # noqa:E501
         max_val = np.argmax(policy)
 
         # Greedy selection
