@@ -52,21 +52,24 @@ def get_model_path(directory):
     return path
 
 
-def play_game_job(id: int, model_path):
+def play_game_job(id: int, model_path, return_dict, mcts_iters, stockfish_depth):
     """ Plays a game and returns the result..
 
     Parameters:
         id: Play ID (i.e. worker ID).
         model_path: path to the .h5 model. If it not exists, it will play with
         a fresh one.
-    Returns: str. DatasetGame serialized as a string
+        return_dict: dict. Shared variable in which each worker stores its result.
     """
+    process_initializer()
+
     logger = Logger.get_instance()
 
     agent_is_white = True if random.random() <= .5 else False
     chess_agent = Agent(color=agent_is_white)
     game_env = GameStockfish(player_color=agent_is_white,
-                             stockfish='../../res/stockfish-10-64')
+                             stockfish='../../res/stockfish-10-64',
+                             stockfish_depth=stockfish_depth)
 
     try:
         chess_agent.load(model_path)
@@ -78,7 +81,8 @@ def play_game_job(id: int, model_path):
     try:
         timer_start = timer()
         while game_env.get_result() is None:
-            agent_move = chess_agent.best_move(game_env, real_game=False)
+            agent_move = chess_agent.best_move(game_env, real_game=False,
+                                               max_iters=mcts_iters)
             game_env.move(agent_move)
         timer_end = timer()
 
@@ -90,7 +94,8 @@ def play_game_job(id: int, model_path):
     d = DatasetGame()
     d.append(game_env)
     game_env.tearup()
-    return str(d)
+
+    return_dict[id] = str(d)
 
 
 def train_job(model_dir, dataset_string):
@@ -120,7 +125,7 @@ def train_job(model_dir, dataset_string):
     chess_agent.save(model_path)
 
 
-def train(model_dir, games=1, workers=1, save_plays=True):
+def train(model_dir, workers=1, save_plays=True, mcts_iters=900, stockfish_depth=15):
     """ Plays N concurrent games, save the results and then trains and saves
     the model.
 
@@ -134,20 +139,34 @@ def train(model_dir, games=1, workers=1, save_plays=True):
     logger = Logger.get_instance()
     model_path = get_model_path(model_dir)
 
-    logger.info(f"Set up {games} games distributed over {workers} workers.")
-
-    results = []
-    with ProcessPoolExecutor(workers, initializer=process_initializer)\
-            as executor:
-        for i in range(games):
-            results.append(executor.submit(play_game_job, *[i, model_path]))
+    logger.info(f"Setting up {workers} concurrent games.")
 
     dataset_games = DatasetGame()
 
-    for r in results:
+    procs = []
+    manager = multiprocessing.Manager()
+    return_dict = manager.dict()
+
+    for i in range(workers):
+        proci = multiprocessing.Process(target=play_game_job,
+                                        args=(i, 
+                                            model_path, 
+                                            return_dict, 
+                                            mcts_iters,
+                                            stockfish_depth)
+                                        )
+        procs.append(proci)
+        proci.start()
+
+    for p in procs:
+        p.join()
+
+    for r in return_dict.values():
         di = DatasetGame()
-        di.loads(r.result())
+        di.loads(r)
         dataset_games.append(di)
+
+    logger.debug("GAMES PLAYED: {}".format(str(dataset_games)))
 
     if save_plays:
         logger.info("Storing the train recorded games")
@@ -165,21 +184,31 @@ def main():
     parser.add_argument('model_dir', metavar='modeldir',
                         help="where to store (and load from)"
                         "the trained model and the logs")
-    parser.add_argument('--games', metavar='games', type=int, default=1,
-                        help="Number of games to play (default 1)")
     parser.add_argument('--workers', metavar='workers', type=int,
                         default=1,
-                        help="Number of processes to play the games"
+                        help="Number of processes to play the games (the same as "
+                        "concurrent games)"
                         " (default = 1)")
     parser.add_argument('--train_rounds', metavar='train_rounds', type=int,
                         default=1,
                         help="Number of training cycles")
-    parser.add_argument('--save_plays',
+    parser.add_argument('--no_save_plays',
                         action='store_false',
-                        help="Whether you want to record the training plays.")
+                        default=True,
+                        help="Whether you want to record the training plays."
+                        "Default: true")
     parser.add_argument('--debug',
-                        action='debug_mode',
-                        help="Log debug messages on screen.")
+                        action='store_true',
+                        default=False,
+                        help="Log debug messages on screen. Default false.")
+    parser.add_argument('--stockfish_depth', metavar='stockfish', type=int,
+                        default=15,
+                        help="Stockfish tree search depth. (Default = 15)")
+    parser.add_argument('--mcts_iters', metavar='mcts', type=int,
+                        default=900,
+                        help="Max number of iterations of the MTCS during playing "
+                        "phase.")
+
     args = parser.parse_args()
 
     logger = Logger.get_instance()
@@ -194,12 +223,16 @@ def main():
     # Recording and saving dataset
     logger.info("Starting training program.")
     for i in range(args.train_rounds):
-        logger.info(f"Starting round {i} of {args.train_rounds}")
+        logger.info(f"Starting round {i+1} of {args.train_rounds}")
         mem_before = psutil.Process().memory_percent()
+
         train(args.model_dir,
-              games=args.games,
               workers=args.workers,
-              save_plays=args.save_plays)
+              save_plays=args.no_save_plays,
+              mcts_iters=args.mcts_iters,
+              stockfish_depth=args.stockfish_depth
+              )
+
         mem_after = psutil.Process().memory_percent()
         logger.debug(f"RAM INCREMENT {mem_after - mem_before}")
 
