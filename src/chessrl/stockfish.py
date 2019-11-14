@@ -14,10 +14,11 @@ class Stockfish(Player):
         self.engine = chess.engine.SimpleEngine.popen_uci(binary_path)
 
         self.thinking_time = thinking_time
-        self.search_depth=search_depth
+        self.search_depth = search_depth
 
     def best_move(self, game: 'Game'):  # noqa: E0602, F821
-        # Page 77 of http://web.ist.utl.pt/diogo.ferreira/papers/ferreira13impact.pdf
+        # Page 77 of
+        # http://web.ist.utl.pt/diogo.ferreira/papers/ferreira13impact.pdf
         # gives some study about the relation of search depth vs ELO.
         result = self.engine.play(game.board,
                                   # chess.engine.Limit(time=self.thinking_time)

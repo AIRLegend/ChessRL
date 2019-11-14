@@ -65,6 +65,10 @@ Also, in the same model directory you will find a `gameplays.json` file which
 contains the recorded training games of the model. With this, we can study its
 behaviour over time.
 
+### Can I play against the agent?
+
+Yup. Under src/webplayer you will find a Flask app which deploys a web interface to play against the trained agent.
+
 
 ### Literature
 
