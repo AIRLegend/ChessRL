@@ -23,13 +23,15 @@ class Agent(Player):
         self.move_encodings = netencoder.get_uci_labels()
         self.uci_dict = {u: i for i, u in enumerate(self.move_encodings)}
 
-    def best_move(self, game:'Game', real_game=False) -> str:  # noqa: E0602, F821
+    def best_move(self, game:'Game', real_game=False, max_iters=900) -> str:  # noqa: E0602, F821
         """ Finds and returns the best possible move (UCI encoded)
 
         Parameters:
             game: Game. Current game before the move of this agent is made.
             real_game: Whether to use MCTS or only the neural network (self
             play vs playing in a real environment).
+            max_iters: if not playing a real game, the max number of iterations of
+            the MCTS algorithm.
 
         Returns:
             str. UCI encoded movement.
@@ -41,7 +43,7 @@ class Agent(Player):
         else:
             if game.get_result() is None:
                 current_tree = mctree.Tree(game)
-                best_move = str(current_tree.select(self, max_iters=900))
+                best_move = str(current_tree.select(self, max_iters=max_iters))
         return best_move
 
     def predict_outcome(self, game:'Game') -> float:  # noqa: E0602, F821

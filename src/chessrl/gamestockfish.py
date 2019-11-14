@@ -7,9 +7,10 @@ class GameStockfish(Game):
     """ Represents a game agaisnt a Stockfish Agent."""
 
     def __init__(self, stockfish,
-                 player_color=chess.WHITE,  # TODO: Chess.WHITE
+                 player_color=Game.WHITE,
                  board=None,
-                 date=None):
+                 date=None,
+                 stockfish_depth=10):
         super().__init__(board=board, player_color=player_color, date=date)
         if stockfish is None:
             raise ValueError('A Stockfish object or a path is needed.')
@@ -19,7 +20,7 @@ class GameStockfish(Game):
 
         if type(stockfish) == str:
             self.stockfish = Stockfish(stockfish_color, stockfish,
-                                       search_depth=10)
+                                       search_depth=stockfish_depth)
         elif type(stockfish) == Stockfish:
             self.stockfish = stockfish
 

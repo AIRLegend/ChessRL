@@ -11,6 +11,8 @@ from datetime import datetime
 class Game(object):
 
     NULL_MOVE = '00000'
+    WHITE = chess.WHITE
+    BLACK = chess.BLACK
 
     def __init__(self, board=None, player_color=chess.WHITE, date=None):
         if board is None:
