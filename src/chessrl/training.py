@@ -52,7 +52,7 @@ def get_model_path(directory):
     return path
 
 
-def play_game_job(id: int, model_path):
+def play_game_job(id: int, model_path, return_dict):
     """ Plays a game and returns the result..
 
     Parameters:
@@ -61,6 +61,8 @@ def play_game_job(id: int, model_path):
         a fresh one.
     Returns: str. DatasetGame serialized as a string
     """
+    process_initializer()
+
     logger = Logger.get_instance()
 
     agent_is_white = True if random.random() <= .5 else False
@@ -90,7 +92,9 @@ def play_game_job(id: int, model_path):
     d = DatasetGame()
     d.append(game_env)
     game_env.tearup()
-    return str(d)
+
+    return_dict[id] = str(d)
+    #return str(d)
 
 
 def train_job(model_dir, dataset_string):
@@ -137,17 +141,41 @@ def train(model_dir, games=1, workers=1, save_plays=True):
     logger.info(f"Set up {games} games distributed over {workers} workers.")
 
     results = []
-    with ProcessPoolExecutor(workers, initializer=process_initializer)\
-            as executor:
-        for i in range(games):
-            results.append(executor.submit(play_game_job, *[i, model_path]))
+   #  with ProcessPoolExecutor(workers, initializer=process_initializer)\
+   #          as executor:
+   #      for i in range(games):
+   #          results.append(executor.submit(play_game_job, *[i, model_path]))
 
     dataset_games = DatasetGame()
 
-    for r in results:
+    #for r in results:
+    #    di = DatasetGame()
+    #    di.loads(r.result())
+    #    dataset_games.append(di)
+
+
+    ############# ADDED ############
+    procs = []
+    manager = multiprocessing.Manager()
+    return_dict = manager.dict()
+
+    for i in range(workers):
+        proci = multiprocessing.Process(target=play_game_job,
+                                        args=(i, model_path, return_dict))
+        procs.append(proci)
+        proci.start()
+    for p in procs:
+        p.join()
+
+    for r in return_dict.values():
         di = DatasetGame()
-        di.loads(r.result())
+        di.loads(r)
         dataset_games.append(di)
+
+    logger.warning(str(dataset_games))
+    return
+    ############# ADDED ############
+
 
     if save_plays:
         logger.info("Storing the train recorded games")
@@ -178,7 +206,7 @@ def main():
                         action='store_false',
                         help="Whether you want to record the training plays.")
     parser.add_argument('--debug',
-                        action='debug_mode',
+                        action='store_false',
                         help="Log debug messages on screen.")
     args = parser.parse_args()
 
@@ -189,12 +217,12 @@ def main():
         logger.set_level(0)
 
 
-    multiprocessing.set_start_method('spawn', force=True)
+    multiprocessing.set_start_method('fork', force=True)
 
     # Recording and saving dataset
     logger.info("Starting training program.")
     for i in range(args.train_rounds):
-        logger.info(f"Starting round {i} of {args.train_rounds}")
+        logger.info(f"Starting round {i+1} of {args.train_rounds}")
         mem_before = psutil.Process().memory_percent()
         train(args.model_dir,
               games=args.games,

@@ -23,9 +23,6 @@ class Agent(Player):
         self.move_encodings = netencoder.get_uci_labels()
         self.uci_dict = {u: i for i, u in enumerate(self.move_encodings)}
 
-        # TODO: DEBUG purposes
-        self.current_tree = None
-
     def best_move(self, game:'Game', real_game=False) -> str:  # noqa: E0602, F821
         """ Finds and returns the best possible move (UCI encoded)
 
@@ -43,8 +40,8 @@ class Agent(Player):
             best_move = game.get_legal_moves()[np.argmax(policy)]
         else:
             if game.get_result() is None:
-                self.current_tree = mctree.Tree(game)
-                best_move = str(self.current_tree.select(self, max_iters=900))
+                current_tree = mctree.Tree(game)
+                best_move = str(current_tree.select(self, max_iters=900))
         return best_move
 
     def predict_outcome(self, game:'Game') -> float:  # noqa: E0602, F821
