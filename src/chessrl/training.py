@@ -2,7 +2,6 @@ from agent import Agent
 from gamestockfish import GameStockfish
 from dataset import DatasetGame
 from timeit import default_timer as timer
-from concurrent.futures import ProcessPoolExecutor
 from lib.logger import Logger
 
 import random
@@ -38,10 +37,11 @@ def get_model_path(directory):
     Returns:
         path: str. Path to the file (directory+'/model-newest.h5')
     """
-    # Model name
-    models = [f for f in os.listdir(directory) if f.endswith("h5")]
 
     path = directory + "/model-0.h5"
+
+    # Model name
+    models = [f for f in os.listdir(directory) if f.endswith("h5")]
 
     if len(models) > 0:
         # get greater version
@@ -52,14 +52,16 @@ def get_model_path(directory):
     return path
 
 
-def play_game_job(id: int, model_path, return_dict, mcts_iters, stockfish_depth):
+def play_game_job(id: int, model_path, return_dict, mcts_iters,
+                  stockfish_depth):
     """ Plays a game and returns the result..
 
     Parameters:
         id: Play ID (i.e. worker ID).
         model_path: path to the .h5 model. If it not exists, it will play with
         a fresh one.
-        return_dict: dict. Shared variable in which each worker stores its result.
+        return_dict: dict. Shared variable in which each worker stores its
+        result.
     """
     process_initializer()
 
@@ -114,6 +116,7 @@ def train_job(model_dir, dataset_string):
     data_train.loads(dataset_string)
 
     model_path = get_model_path(model_dir)
+
     logger.info("Loading the agent...")
     chess_agent = Agent(color=True)
     try:
@@ -125,7 +128,8 @@ def train_job(model_dir, dataset_string):
     chess_agent.save(model_path)
 
 
-def train(model_dir, workers=1, save_plays=True, mcts_iters=900, stockfish_depth=15):
+def train(model_dir, workers=1, save_plays=True,
+          mcts_iters=900, stockfish_depth=15):
     """ Plays N concurrent games, save the results and then trains and saves
     the model.
 
@@ -137,6 +141,11 @@ def train(model_dir, workers=1, save_plays=True, mcts_iters=900, stockfish_depth
         save_plays: Whether to save the results of the games before training
     """
     logger = Logger.get_instance()
+
+    # If the dir does not exist, create it.
+    if not os.path.isdir(model_dir):
+        os.makedirs(model_dir)
+
     model_path = get_model_path(model_dir)
 
     logger.info(f"Setting up {workers} concurrent games.")
@@ -149,11 +158,11 @@ def train(model_dir, workers=1, save_plays=True, mcts_iters=900, stockfish_depth
 
     for i in range(workers):
         proci = multiprocessing.Process(target=play_game_job,
-                                        args=(i, 
-                                            model_path, 
-                                            return_dict, 
-                                            mcts_iters,
-                                            stockfish_depth)
+                                        args=(i,
+                                              model_path,
+                                              return_dict,
+                                              mcts_iters,
+                                              stockfish_depth)
                                         )
         procs.append(proci)
         proci.start()
@@ -186,8 +195,8 @@ def main():
                         "the trained model and the logs")
     parser.add_argument('--workers', metavar='workers', type=int,
                         default=1,
-                        help="Number of processes to play the games (the same as "
-                        "concurrent games)"
+                        help="Number of processes to play the games "
+                        "(the same as concurrent games)"
                         " (default = 1)")
     parser.add_argument('--train_rounds', metavar='train_rounds', type=int,
                         default=1,
@@ -206,8 +215,8 @@ def main():
                         help="Stockfish tree search depth. (Default = 15)")
     parser.add_argument('--mcts_iters', metavar='mcts', type=int,
                         default=900,
-                        help="Max number of iterations of the MTCS during playing "
-                        "phase.")
+                        help="Max number of iterations of the MTCS during"
+                        "playing phase.")
 
     args = parser.parse_args()
 
@@ -216,7 +225,6 @@ def main():
 
     if args.debug:
         logger.set_level(0)
-
 
     multiprocessing.set_start_method('spawn', force=True)
 
