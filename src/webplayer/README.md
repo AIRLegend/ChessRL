@@ -20,7 +20,7 @@ pip install flask
 Simply with:
 
 ```bash
-python run.py
+python run.py --agent_path ../../data/models/model1/model-0.h5  # or wherever the weights are. By default is this path.
 ```
 
 And navigate to http://localhost:5000.
