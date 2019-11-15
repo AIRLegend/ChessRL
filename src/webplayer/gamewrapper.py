@@ -4,13 +4,18 @@ from gameagent import GameAgent  # noqa:E402
 class GameWrapper(object):
     _wrapper = None
 
-    def __init__(self, player_color=True):
-        self.game = GameAgent('../../data/models/model0/model-0.h5',
+    def __init__(self, player_color=True,
+                 agent_path='../../data/models/model0/model-0.h5'):
+        self.game = GameAgent(agent_path,
                               player_color=player_color)
 
-    def get_instance(player_color=True):
+    def get_instance(player_color=True, agent_path=None):
         if GameWrapper._wrapper is None:
-            GameWrapper._wrapper = GameWrapper(player_color)
+            if agent_path is not None:
+                GameWrapper._wrapper = GameWrapper(player_color,
+                                                   agent_path=agent_path)
+            else:
+                GameWrapper._wrapper = GameWrapper(player_color)
 
         return GameWrapper._wrapper
 
