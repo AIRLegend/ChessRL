@@ -22,6 +22,8 @@ Install them with
 pip3 install -r requirements.txt
 ```
 
+Tensorflow is also needed, but you must install either `tensorflow`or `tensorflow-gpu`.
+
 Also, you need to download the specific 
 [stockfish binary](https://stockfishchess.org/download/) for your platform,
 for automating this made a script to automatically download it.
