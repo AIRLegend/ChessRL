@@ -72,6 +72,12 @@ Also, in the same model directory you will find a `gameplays.json` file which
 contains the recorded training games of the model. With this, we can study its
 behaviour over time.
 
+In addition, the script `benchmark.py` will play several concurrent games agaisnt stockfish and print a summary of all the games. You can execute it with:
+
+```bash
+python benchmark.py ../../data/models/model1 --workers=2 --games 10 --stockfish_depth 10
+```
+
 ## Can I play against the agent?
 
 Yup. Under `src/webplayer` you will find a Flask app which deploys a web interface to play against the trained agent. There is another README with more information.
