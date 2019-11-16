@@ -81,7 +81,7 @@ class Tree(object):
 
         self.root.visits = 1
 
-    def select(self, agent: Player, max_iters=200, verbose=False):
+    def select(self, agent: Player, max_iters=200, verbose=False, noise=True):
         """ Explores and selects the best next state to choose from the root
         state
 
@@ -90,6 +90,7 @@ class Tree(object):
             stockfish (the neural network).
             max_iters: int. Number of interations to run the algorithm.
             verbose: bool. Whether to print the search status.
+            noise: bool. Whether to add Dirichlet noise to the calc policy.
         """
         current_node = self.root
         i = 0
@@ -126,9 +127,16 @@ class Tree(object):
         if verbose:
             del(pbar)
         tau = max(1, len(self.root.state.board.move_stack))
-        #tau = 10
+        # tau = 10
         # Select argmax π(a|root) proportional to the visit count
         policy = np.array([np.power(v.visits, 1 / tau) for v in self.root.children]) / self.root.visits  # noqa:E501
+
+        # apply random noise for ensuring exploration
+        if noise:
+            epsilon = 0.25
+            policy = (1-epsilon) * policy +\
+                np.random.dirichlet([0.03] * len(self.root.children))
+
         max_val = np.argmax(policy)
 
         # Greedy selection
