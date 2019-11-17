@@ -228,4 +228,4 @@ class Tree(object):
         del(node)
 
     def __del__(self):
-        self.reset(self.root)
+        self._reset(self.root)
