@@ -7,6 +7,8 @@ from matplotlib import pyplot as plt
 import tempfile
 import webbrowser
 import os
+import numpy as np
+
 
 def draw_tree(tree: Tree):
     g = nx.DiGraph()
@@ -53,7 +55,7 @@ def draw_tree_html(tree: Tree):
     with open(template_path, 'r') as file:
         filestr = file.read()
 
-    tree_json = __json(tree.root)
+    tree_json = __json(tree.root, root=True)
 
     filestr = filestr.replace("{_DATA_}", str(tree_json))
 
@@ -63,8 +65,26 @@ def draw_tree_html(tree: Tree):
     webbrowser.open('file://{}'.format(path))
 
 
-def __json(node):
+def __json(node, root=False):
     node_json = {}
-    node_json['text'] = {'name': f'V: {node.get_value()}'}
+    if root:
+        node_json['text'] = {'title': f'Q+U: {node.get_value()}',
+                             'name': f'Val: {node.value}',
+                             'desc': 'Move: [ROOT]'}
+    else:
+        node_json['text'] = {'title': f'Q+U: {node.get_value()}',
+                             'name': f'Val: {node.value}',
+                             'desc': f'Move: {node.state.board.move_stack[-2]}'
+                             }
+
     node_json['children'] = [__json(n) for n in node.children]
+
+    try:
+        if root:
+            chosen = np.argmax([n.get_value() for n in node.children])
+            node_json['children'][chosen]['HTMLclass'] = 'nextmove'
+        chosen = np.argmax([n.value for n in node.children])
+        node_json['children'][chosen]['HTMLclass'] = 'maxnode'
+    except ValueError:
+        pass
     return node_json
