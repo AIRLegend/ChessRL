@@ -98,35 +98,48 @@ class Tree(object):
         """
         current_node = self.root
         i = 0
-        if verbose:
-            pbar = tqdm(total=max_iters)
-            print("Monte Carlo Tree Search running...")
-        while(i < max_iters):
-            i += 1
-            if verbose:
-                pbar.update(1)
-            if current_node.is_leaf:
-                if current_node.visits == 0:  # Is new
-                    res = self.simulate(current_node, agent)
-                    self.backprop(current_node, res)
-                else:  # Is not new
-                    self.expand(current_node, agent)
-                    res = current_node.get_value()
-                    try:
-                        max_child = np.argmax([x.get_value() for x in
-                                               current_node.children])
-                        current_node = current_node.children[max_child]
-                        res = self.simulate(current_node, agent)
-                    except ValueError:  # If there were no children
-                        pass
-                    self.backprop(current_node, res)
+        #if verbose:
+        #    pbar = tqdm(total=max_iters)
+        #    print("Monte Carlo Tree Search running...")
+        # while(i < max_iters):
+        #     i += 1
+        #     if verbose:
+        #         pbar.update(1)
+        #     if current_node.is_leaf:
+        #         if current_node.visits == 0:  # The node is new
+        #             res = current_node.get_result()
+        #             if res is None:
+        #                 # If the game is not over, we make a rollout. Else, we 
+        #                 # use the final result.
+        #                 res = self.simulate(current_node, agent)
+        #             self.backprop(current_node, res)
+        #         else:  # Is not new
+        #             self.expand(current_node, agent)
+        #             res = current_node.get_value()
+        #             try:
+        #                 max_child = np.argmax([x.get_value() for x in
+        #                                        current_node.children])
+        #                 current_node = current_node.children[max_child]
+        #                 res = self.simulate(current_node, agent)
+        #             except ValueError:  # If there were no children
+        #                 pass
+        #             self.backprop(current_node, res)
 
-                    # Return to root (finish cycle)
-                    current_node = self.root
-            else:
-                ucbs = [u.get_value() for u in current_node.children]
-                best_child = np.argmax(ucbs)
-                current_node = current_node.children[best_child]
+        #             # Return to root (finish cycle)
+        #             current_node = self.root
+        #     else:
+        #         ucbs = [u.get_value() for u in current_node.children]
+        #         best_child = np.argmax(ucbs)
+        #         current_node = current_node.children[best_child]
+
+        pbar = tqdm(total=max_iters)
+        for _ in range(max_iters):
+            pbar.update(1)
+            current_node = self.root
+            current_node = self.forward(current_node, agent)
+            v = self.simulate(current_node, agent)
+            self.backprop(current_node, v)
+
 
         if verbose:
             del(pbar)
@@ -146,6 +159,7 @@ class Tree(object):
             policy = (1 - epsilon) * policy +\
                 np.random.dirichlet([0.03] * len(self.root.children))
 
+
         max_val = np.argmax(policy)
 
         # Greedy selection
@@ -160,6 +174,16 @@ class Tree(object):
             # the first turn if the agent plays blacks.
             pass
         return b_mov
+
+    def forward(self, node, agent):
+        current_node = node
+        while current_node.state.get_result() is None:
+            if current_node.is_leaf:
+                self.expand(current_node, agent=agent)
+            else:
+                best = np.argmax([c.get_value() for c in current_node.children])
+                current_node = current_node.children[best]
+        return current_node
 
     def expand(self, node, agent=None):
         """
@@ -224,7 +248,7 @@ class Tree(object):
         """ Sets all node references to None in order to GC can collect them
         well."""
         for c in node.children:
-            self.reset(c)
+            self._reset(c)
         del(node)
 
     def __del__(self):
