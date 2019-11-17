@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width" />
+        <title>Tree View</title>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+        <link rel="stylesheet" href="https://fperucic.github.io/treant-js/Treant.css"/>
+        <style type="text/css" media="screen">
+            .node {
+                boder: 2px;
+                color: black;
+                background: lightgrey;
+                border-radius: 7px;
+                padding: 1px !important;
+            }
+            .collapse-switch {
+                width: 12px !important;
+                height: 12px !important;
+                background-color: darkgray;
+                content: "X";
+            }
+        </style>
+    </head>
+    <body>
+        <div id="tree-simple"> </div>
+        <script src="https://fperucic.github.io/treant-js/Treant.js"></script>
+        <script src="https://fperucic.github.io/treant-js/vendor/raphael.js"></script>
+        <script>
+            simple_chart_config = {
+                chart: {
+                    container: "#tree-simple",
+                    rootOrientation: 'WEST',
+                    levelSeparation: 100,
+                    subTeeSeparation: 150,
+                    animateOnInit: false,
+                    node: {
+                        collapsable: true
+                    }
+                },
+                nodeStructure: {_DATA_}
+            };
+            var my_chart = new Treant(simple_chart_config);
+        </script>
+
+    </body>
+</html>
