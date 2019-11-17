@@ -30,7 +30,7 @@ class ChessModel(object):
         """
         inp = Input((8, 8, 127))
 
-        x = Conv2D(filters=128, kernel_size=3, strides=1, padding='same',
+        x = Conv2D(filters=256, kernel_size=3, strides=1, padding='same',
                    kernel_regularizer='l2')(inp)
 
         for i in range(10):
@@ -48,13 +48,15 @@ class ChessModel(object):
                          name='policy_out')(pol_head)
 
         # Value Head
-        val_head = Conv2D(filters=2,
+        val_head = Conv2D(filters=1,
                           strides=1,
                           kernel_size=1, padding='valid',
                           kernel_regularizer='l2')(x)
         val_head = BatchNormalization(axis=-1)(val_head)
         val_head = Activation("relu")(val_head)
         val_head = Flatten()(val_head)
+        val_head = Dense(256, kernel_regularizer='l2',
+                         activation='relu')(val_head)
         val_head = Dense(1, kernel_regularizer='l2', activation='tanh',
                          name='value_out')(val_head)
 
@@ -105,11 +107,11 @@ class ChessModel(object):
 
     def __res_block(self, block_input):
         """ Builds a residual block """
-        x = Conv2D(filters=128, kernel_size=3, padding="same", strides=1,
+        x = Conv2D(filters=256, kernel_size=3, padding="same", strides=1,
                    kernel_regularizer='l2')(block_input)
         x = BatchNormalization(axis=-1)(x)
         x = Activation("relu")(x)
-        x = Conv2D(filters=128, kernel_size=3, padding="same",
+        x = Conv2D(filters=256, kernel_size=3, padding="same",
                    kernel_regularizer='l2')(x)
         x = BatchNormalization(axis=-1)(x)
         x = Add()([block_input, x])

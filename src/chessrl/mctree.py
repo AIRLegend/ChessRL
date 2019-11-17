@@ -65,6 +65,11 @@ class Node(object):
                     (np.sqrt(self.parent.visits) / (1 + self.visits))
         return value
 
+    def __del__(self):
+        del(self.state)
+        self.parent = None
+        self.children = None
+
 
 class Tree(object):
     """ Monte Carlo Tree.
@@ -77,11 +82,11 @@ class Tree(object):
         if type(root) is Node:
             self.root = root
         else:
-            self.root = Node(root)
+            self.root = Node(root.get_copy())
 
         self.root.visits = 1
 
-    def select(self, agent: Player, max_iters=200, verbose=False):
+    def select(self, agent: Player, max_iters=200, verbose=False, noise=True):
         """ Explores and selects the best next state to choose from the root
         state
 
@@ -94,8 +99,8 @@ class Tree(object):
         current_node = self.root
         i = 0
         if verbose:
-            print("Monte Carlo Tree Search running...")
             pbar = tqdm(total=max_iters)
+            print("Monte Carlo Tree Search running...")
         while(i < max_iters):
             i += 1
             if verbose:
@@ -106,9 +111,9 @@ class Tree(object):
                     self.backprop(current_node, res)
                 else:  # Is not new
                     self.expand(current_node, agent)
-                    res = current_node.value
+                    res = current_node.get_value()
                     try:
-                        max_child = np.argmax([x.value for x in
+                        max_child = np.argmax([x.get_value() for x in
                                                current_node.children])
                         current_node = current_node.children[max_child]
                         res = self.simulate(current_node, agent)
@@ -125,10 +130,22 @@ class Tree(object):
 
         if verbose:
             del(pbar)
-        # tau = len(self.root.state.board.move_stack) # TODO: Change
-        tau = 10
+
+        # Select tau = 1 -> 0 (if number of moves > 30)
+        nb_moves = len(self.root.state.board.move_stack)
+        tau = 1
+        if nb_moves >= 30:
+            tau = nb_moves / (1 + np.power(nb_moves, 1.3))
+
         # Select argmax π(a|root) proportional to the visit count
         policy = np.array([np.power(v.visits, 1 / tau) for v in self.root.children]) / self.root.visits  # noqa:E501
+
+        # apply random noise for ensuring exploration
+        if noise:
+            epsilon = 0.25
+            policy = (1 - epsilon) * policy +\
+                np.random.dirichlet([0.03] * len(self.root.children))
+
         max_val = np.argmax(policy)
 
         # Greedy selection
@@ -202,3 +219,13 @@ class Tree(object):
 
         if node.parent is not None:
             self.backprop(node.parent, value)
+
+    def _reset(self, node: Node):
+        """ Sets all node references to None in order to GC can collect them
+        well."""
+        for c in node.children:
+            self.reset(c)
+        del(node)
+
+    def __del__(self):
+        self.reset(self.root)

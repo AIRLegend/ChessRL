@@ -82,6 +82,13 @@ class Game(object):
     def reset(self):
         self.board.reset()
 
+    def free(self):
+        """ This method will be implemented by children. This will serve
+        as a way to disconnect from the engine or free resources but without
+        destroying the object
+        """
+        pass
+
     def get_result(self):
         """ Returns the result of the game for the white pieces. None if the
         game is not over

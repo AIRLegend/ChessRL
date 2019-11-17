@@ -50,3 +50,11 @@ class GameStockfish(Game):
         the program.
         """
         self.stockfish.kill()
+
+    def free(self):
+        """ Unlinks the game from the stockfish engine. """
+        self.stockfish = None
+
+    def __del__(self):
+        self.free()
+        del(self.board)
