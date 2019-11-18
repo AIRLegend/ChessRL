@@ -5,6 +5,10 @@ from player import Player
 from tqdm import tqdm
 
 from concurrent.futures import ThreadPoolExecutor
+from threading import Lock
+
+
+VIRTUAL_LOSS = 3
 
 
 class Node(object):
@@ -23,18 +27,28 @@ class Node(object):
     def __init__(self, state: 'Game', parent=None):
         self.state = state
         self.children = []
+        self.unexpanded_actions = state.get_legal_moves()
         self.parent = parent
         self.value = 0
         self.visits = 0
         self.prior = 1
+        self.vloss = 0
+        self.lock = Lock()
 
     @property
     def is_leaf(self):
         return len(self.children) == 0
 
     @property
+    def is_fully_expanded(self):
+        len(self.unexpanded_actions) == 0
+
+    @property
     def is_root(self):
         return self.parent is None
+
+    def pop_unexpanded_action(self):
+        return self.unexpanded_actions.pop()
 
     def get_ucb1(self):
         """ returns the UCB1 metric of the node. """
@@ -65,7 +79,7 @@ class Node(object):
             value = (self.value / (1 + self.visits)) +\
                 C * self.prior *\
                     (np.sqrt(self.parent.visits) / (1 + self.visits))
-        return value
+        return value - self.vloss
 
     def get_best_child(self):
         best = np.argmax([c.get_value() for c in self.children])
@@ -112,14 +126,14 @@ class Tree(object):
         #    current_node = self.forward(current_node, agent)
         #    v = self.simulate(current_node, agent)
         #    self.backprop(current_node, v)
-        with ThreadPoolExecutor(max_workers=4) as executor:
+        with ThreadPoolExecutor(max_workers=8) as executor:
             for _ in range(max_iters):
-                executor.append(self.explore_tree, node=self.root, agent=agent)
+                executor.submit(self.explore_tree, node=self.root, agent=agent)
 
         if verbose:
             del(pbar)
 
-        max_val = np.argmax(self.policy(self.root, noise=noise))
+        max_val = np.argmax(self.compute_policy(self.root, noise=noise))
 
         # After the last play the oponent has played, so we use the before last
         # one
@@ -140,9 +154,12 @@ class Tree(object):
 
     def forward(self, node, agent):
         current_node = node
+        with current_node.lock:
+            current_node.vloss += VIRTUAL_LOSS
+
         while current_node.state.get_result() is None:
-            if current_node.is_leaf:
-                self.expand(current_node, agent=agent)
+            if not current_node.is_fully_expanded:
+                return self.expand(current_node, agent=agent)
             else:
                 current_node = current_node.get_best_child()
         return current_node
@@ -157,14 +174,20 @@ class Tree(object):
         Parameters:
             node: Node. Node which will be expanded.
         """
-        legal_moves = [m for m in node.state.get_legal_moves()]
-        new_states = []
-        for m in legal_moves:
+        with node.lock:
+            #if node.is_leaf:
+                #legal_moves = [m for m in node.state.get_legal_moves()]
+                #new_states = []
+                #for m in legal_moves:
+                #    new_state = node.state.get_copy()
+                #    new_state.move(m)
+                #    new_states.append(new_state)
+                #node.children = [Node(s, parent=node) for s in new_states]
             new_state = node.state.get_copy()
-            new_state.move(m)
-            new_states.append(new_state)
-
-        node.children = [Node(s, parent=node) for s in new_states]
+            new_state.move(node.pop_unexpanded_action())
+            new_child = Node(new_state, parent=node)
+            node.children.append(new_child)
+        return new_child
 
         # If there is an agent, we calculate the prior probabilities
         # of selecting each possible move.
@@ -183,7 +206,10 @@ class Tree(object):
         Returns:
             results_sim: float, Result of the simulations
         """
-        return agent.predict_outcome(node.state)
+        result = node.state.get_result()
+        if result is None:
+            result = agent.predict_outcome(node.state)
+        return result
 
     def backprop(self, node: Node, value: float):
         """ Backpropagation phase of the algorithm.
@@ -194,8 +220,10 @@ class Tree(object):
             value: float, value that will be added to all of the ancestors
             untill root.
         """
-        node.visits += 1
-        node.value += value
+        with node.lock:
+            node.visits += 1
+            node.value += value
+            node.vloss -= VIRTUAL_LOSS
 
         if node.parent is not None:
             self.backprop(node.parent, value)
