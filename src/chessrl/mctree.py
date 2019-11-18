@@ -4,6 +4,8 @@ from game import Game
 from player import Player
 from tqdm import tqdm
 
+from concurrent.futures import ThreadPoolExecutor
+
 
 class Node(object):
     """ Node from a Monte Carlo Tree.
@@ -65,6 +67,10 @@ class Node(object):
                     (np.sqrt(self.parent.visits) / (1 + self.visits))
         return value
 
+    def get_best_child(self):
+        best = np.argmax([c.get_value() for c in self.children])
+        return self.children[best]
+
     def __del__(self):
         del(self.state)
         self.parent = None
@@ -95,77 +101,28 @@ class Tree(object):
             stockfish (the neural network).
             max_iters: int. Number of interations to run the algorithm.
             verbose: bool. Whether to print the search status.
+            noise: bool, Whether to apply dirichlet noise to the policy.
         """
-        current_node = self.root
-        i = 0
-        #if verbose:
-        #    pbar = tqdm(total=max_iters)
-        #    print("Monte Carlo Tree Search running...")
-        # while(i < max_iters):
-        #     i += 1
-        #     if verbose:
-        #         pbar.update(1)
-        #     if current_node.is_leaf:
-        #         if current_node.visits == 0:  # The node is new
-        #             res = current_node.get_result()
-        #             if res is None:
-        #                 # If the game is not over, we make a rollout. Else, we 
-        #                 # use the final result.
-        #                 res = self.simulate(current_node, agent)
-        #             self.backprop(current_node, res)
-        #         else:  # Is not new
-        #             self.expand(current_node, agent)
-        #             res = current_node.get_value()
-        #             try:
-        #                 max_child = np.argmax([x.get_value() for x in
-        #                                        current_node.children])
-        #                 current_node = current_node.children[max_child]
-        #                 res = self.simulate(current_node, agent)
-        #             except ValueError:  # If there were no children
-        #                 pass
-        #             self.backprop(current_node, res)
-
-        #             # Return to root (finish cycle)
-        #             current_node = self.root
-        #     else:
-        #         ucbs = [u.get_value() for u in current_node.children]
-        #         best_child = np.argmax(ucbs)
-        #         current_node = current_node.children[best_child]
-
-        pbar = tqdm(total=max_iters)
-        for _ in range(max_iters):
-            pbar.update(1)
-            current_node = self.root
-            current_node = self.forward(current_node, agent)
-            v = self.simulate(current_node, agent)
-            self.backprop(current_node, v)
-
+        if verbose:
+            pbar = tqdm(total=max_iters)
+        #for _ in range(max_iters):
+        #    if verbose:
+        #        pbar.update(1)
+        #    current_node = self.root
+        #    current_node = self.forward(current_node, agent)
+        #    v = self.simulate(current_node, agent)
+        #    self.backprop(current_node, v)
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            for _ in range(max_iters):
+                executor.append(self.explore_tree, node=self.root, agent=agent)
 
         if verbose:
             del(pbar)
 
-        # Select tau = 1 -> 0 (if number of moves > 30)
-        nb_moves = len(self.root.state.board.move_stack)
-        tau = 1
-        if nb_moves >= 30:
-            tau = nb_moves / (1 + np.power(nb_moves, 1.3))
-
-        # Select argmax π(a|root) proportional to the visit count
-        policy = np.array([np.power(v.visits, 1 / tau) for v in self.root.children]) / self.root.visits  # noqa:E501
-
-        # apply random noise for ensuring exploration
-        if noise:
-            epsilon = 0.25
-            policy = (1 - epsilon) * policy +\
-                np.random.dirichlet([0.03] * len(self.root.children))
-
-
-        max_val = np.argmax(policy)
-
-        # Greedy selection
-        # max_val = np.argmax([v.get_value() for v in self.root.children])
+        max_val = np.argmax(self.policy(self.root, noise=noise))
 
         # After the last play the oponent has played, so we use the before last
+        # one
         b_mov = Game.NULL_MOVE
         try:
             b_mov = self.root.children[max_val].state.board.move_stack[-2]
@@ -175,14 +132,19 @@ class Tree(object):
             pass
         return b_mov
 
+    def explore_tree(self, node, agent):
+        current_node = self.root
+        current_node = self.forward(current_node, agent)
+        v = self.simulate(current_node, agent)
+        self.backprop(current_node, v)
+
     def forward(self, node, agent):
         current_node = node
         while current_node.state.get_result() is None:
             if current_node.is_leaf:
                 self.expand(current_node, agent=agent)
             else:
-                best = np.argmax([c.get_value() for c in current_node.children])
-                current_node = current_node.children[best]
+                current_node = current_node.get_best_child()
         return current_node
 
     def expand(self, node, agent=None):
@@ -221,12 +183,6 @@ class Tree(object):
         Returns:
             results_sim: float, Result of the simulations
         """
-        # VANILLA
-        # sim_pol = RandomMovePolicy()
-        # sim = Simulation(agent, node.state.get_copy(), sim_pol)
-        # results_sim = sim.run(max_moves=200)  # []
-
-        # NEURAL NET
         return agent.predict_outcome(node.state)
 
     def backprop(self, node: Node, value: float):
@@ -243,6 +199,24 @@ class Tree(object):
 
         if node.parent is not None:
             self.backprop(node.parent, value)
+
+    def compute_policy(self, node: Node, noise=True):
+        """ Calculates the policy vector of a state """
+        # Select tau = 1 -> 0 (if number of moves > 30)
+        nb_moves = len(node.state.board.move_stack)
+        tau = 1
+        if nb_moves >= 30:
+            tau = nb_moves / (1 + np.power(nb_moves, 1.3))
+
+        # Select argmax π(a|node) proportional to the visit count
+        policy = np.array([np.power(v.visits, 1 / tau) for v in node.children]) / node.visits  # noqa:E501
+
+        # apply random noise for ensuring exploration
+        if noise:
+            epsilon = 0.25
+            policy = (1 - epsilon) * policy +\
+                np.random.dirichlet([0.03] * len(node.children))
+        return policy
 
     def _reset(self, node: Node):
         """ Sets all node references to None in order to GC can collect them
