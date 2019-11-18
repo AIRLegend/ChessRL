@@ -1,5 +1,5 @@
-# Neural chess
-## Reinforcement Learning based chess engine.
+# Neural chess <br> Reinforcement Learning based chess engine.
+
 Personal project to build a chess engine based using reinforcement learning.
 
 The idea is to some sort replicate the system built by DeepMind with AlphaZero. I'm
@@ -14,7 +14,7 @@ converge faster towards an "acceptable" game style than following the AlphaZero 
 
 *Work in progress*
 
-### Requirements
+## Requirements
 The necessary python packages (ATM) are listed in the requirements file.
 Install them with
 
@@ -22,37 +22,44 @@ Install them with
 pip3 install -r requirements.txt
 ```
 
-Also, you need to download the specific 
-[stockfish binary](https://stockfishchess.org/download/) for your platform, put it
-under the `res/stockfish/stockfish-10-64` path and make it executable with `chmod +x
-res/stockfish/stockfish-10-64`
+Tensorflow is also needed, but you must install either `tensorflow`or `tensorflow-gpu`.
 
-**OPTIONAL**: Apart from those packages, you should have Graphviz installed in your computer if
+Also, you need to download the specific 
+[stockfish binary](https://stockfishchess.org/download/) for your platform,
+for automating this made a script to automatically download it.
+
+```bash
+cd res
+chmod +x get_stockfish.sh
+./get_stockfish.sh linux   #or "mac", depending of your platform. 
+```
+If you want to download it manually, you have to put the stockfish executable under `res/stockfish-10-64` path, in order to the training script to detect it.
+
+>**OPTIONAL**: Apart from those packages, you should have Graphviz installed in your computer if
 you want to visualize the Monte Carlo trees.
 
-### Training
+## Training
 > **DISCLAIMER:** This is under development and can still contains bugs or  inefficiencies
 
 You can start a training job with
 
 ```bash
-python src/chessrl/training.py ../../data/models/model0 --games=4 --workers=2
---train-rounds 10
+cd src/chessrl
+python training.py ../../data/models/model0 --workers=2 --train_rounds 10
 ```
-This will create 2 child processes which will play 4 games generating a dataset of moves, 
-and then, a model will be trained and saved under `../../data/models/model0` 
+This will create 2 child processes which will play 2 concurrent games, generating a dataset of moves, and then, a model will be trained and saved under `../../data/models/model0` 
 directory (repeating that for 10 rounds). If there is a model already saved there, 
 the script will train that existing model with the new data.
 
 The script will use a GPU if available, if not, the CPU.
 
-For other training options you can execute:
+To list all the available options run
 
 ```bash
-python src/chessrl/training.py -h
+python training.py --help
 ```
 
-### How do I view the progress?
+## How do I view the progress?
 
 The neural network trainning evolution can be monitored with Tensorboard, simply:
 
@@ -65,12 +72,18 @@ Also, in the same model directory you will find a `gameplays.json` file which
 contains the recorded training games of the model. With this, we can study its
 behaviour over time.
 
-### Can I play against the agent?
+In addition, the script `benchmark.py` will play several concurrent games agaisnt stockfish and print a summary of all the games. You can execute it with:
 
-Yup. Under src/webplayer you will find a Flask app which deploys a web interface to play against the trained agent.
+```bash
+python benchmark.py ../../data/models/model1 --workers=2 --games 10 --stockfish_depth 10
+```
+
+## Can I play against the agent?
+
+Yup. Under `src/webplayer` you will find a Flask app which deploys a web interface to play against the trained agent. There is another README with more information.
 
 
-### Literature
+## Literature
 
 1. Mastering Chess and Shogi by Self-Play with a General Reinforcement Learning
    Algorithm, Silver, D. et al. https://arxiv.org/pdf/1712.01815.pdf

@@ -91,10 +91,14 @@ class Game(object):
 
     def get_result(self):
         """ Returns the result of the game for the white pieces. None if the
-        game is not over
+        game is not over. This method checks if the game ends in a draw due
+        to the fifty-move rule. Threefold is not checked because it can
+        be too slow.
         """
         result = None
-        if self.board.is_game_over():
+        if self.board.can_claim_fifty_moves():
+            result = 0
+        elif self.board.is_game_over():
             r = self.board.result()
             if r == "1-0":
                 result = 1  # Whites win

@@ -1,8 +1,13 @@
+""" This script serves as a way to get tangible metrics about how well a
+trained agent behaves agaisnt Stockfish. For that, several games are played
+and a summary of them is returned.
+"""
+
 from agent import Agent
 from gamestockfish import GameStockfish
-from dataset import DatasetGame
 from timeit import default_timer as timer
 from lib.logger import Logger
+from concurrent.futures import ProcessPoolExecutor
 
 import random
 import argparse
@@ -24,6 +29,7 @@ def process_initializer():
     if len(physical_devices) > 0:
         os.environ['CUDA_VISIBLE_DEVICES'] = '0'
         tf.config.experimental.set_memory_growth(physical_devices[0], True)
+    tf.keras.backend.clear_session()
 
 
 def get_model_path(directory):
@@ -52,19 +58,15 @@ def get_model_path(directory):
     return path
 
 
-def play_game_job(id: int, model_path, return_dict, mcts_iters,
-                  stockfish_depth):
+def play_game_job(id: int, model_path, stockfish_depth):
     """ Plays a game and returns the result..
 
     Parameters:
         id: Play ID (i.e. worker ID).
         model_path: path to the .h5 model. If it not exists, it will play with
         a fresh one.
-        return_dict: dict. Shared variable in which each worker stores its
-        result.
+        stockfish_depth: int. Difficulty of stockfish.
     """
-    process_initializer()
-
     logger = Logger.get_instance()
 
     agent_is_white = True if random.random() <= .5 else False
@@ -76,15 +78,15 @@ def play_game_job(id: int, model_path, return_dict, mcts_iters,
     try:
         chess_agent.load(model_path)
     except OSError:
-        logger.warning("Model for play not found, using a random one.")
+        logger.error("Model not found. Exiting.")
+        return None
 
     logger.info(f"Starting game {id}")
 
     try:
         timer_start = timer()
         while game_env.get_result() is None:
-            agent_move = chess_agent.best_move(game_env, real_game=False,
-                                               max_iters=mcts_iters)
+            agent_move = chess_agent.best_move(game_env, real_game=True)
             game_env.move(agent_move)
         timer_end = timer()
 
@@ -93,98 +95,45 @@ def play_game_job(id: int, model_path, return_dict, mcts_iters,
     except Exception:
         logger.error(traceback.format_exc())
 
-    d = DatasetGame()
-    d.append(game_env)
+    res = {'color': agent_is_white, 'result': game_env.get_result()}
     game_env.tearup()
-
-    return_dict[id] = str(d)
-
-
-def train_job(model_dir, dataset_string):
-    """ Loads (or creates, if not found) a model from model_dir, trains it
-    and saves the results. This function has to be used inside a child process.
-
-    Parameters:
-        model_dir: str. Directory which contains the model
-        dataset_string: str. DatasetGame serialized as a string.
-    """
-    logger = Logger.get_instance()
-
-    process_initializer()
-
-    data_train = DatasetGame()
-    data_train.loads(dataset_string)
-
-    model_path = get_model_path(model_dir)
-
-    logger.info("Loading the agent...")
-    chess_agent = Agent(color=True)
-    try:
-        chess_agent.load(model_path)
-    except OSError:
-        logger.warning("Model not found, training a fresh one.")
-    chess_agent.train(data_train, logdir=model_dir, epochs=2)
-    logger.info("Saving the agent...")
-    chess_agent.save(model_path)
+    return res
 
 
-def train(model_dir, workers=1, save_plays=True,
-          mcts_iters=900, stockfish_depth=15):
-    """ Plays N concurrent games, save the results and then trains and saves
-    the model.
+def benchmark(model_dir, workers=1, games=10, stockfish_depth=10):
+    """ Plays N games and gets stats about the results.
 
     Parameters:
         model_dir: str. Directory where the neural net weights and training
             logs will be saved.
-        games: number of games that will be played before training the model.
         workers: number of concurrent games (workers which will play the games)
-        save_plays: Whether to save the results of the games before training
     """
     logger = Logger.get_instance()
-
-    # If the dir does not exist, create it.
-    if not os.path.isdir(model_dir):
-        os.makedirs(model_dir)
 
     model_path = get_model_path(model_dir)
 
     logger.info(f"Setting up {workers} concurrent games.")
 
-    dataset_games = DatasetGame()
+    with ProcessPoolExecutor(workers, initializer=process_initializer)\
+            as executor:
 
-    procs = []
-    manager = multiprocessing.Manager()
-    return_dict = manager.dict()
+        results = []
+        for i in range(games):
+            results.append(executor.submit(play_game_job, *[i,
+                                                            model_path,
+                                                            stockfish_depth]))
+    results = [r.result() for r in results]
+    logger.debug("Calculating stats.")
+    won = [1
+           if x['color'] is True and x['result'] == 1
+           or x['color'] is False and x['result'] == -1 else 0  # noqa:W503
+           for x in results]
 
-    for i in range(workers):
-        proci = multiprocessing.Process(target=play_game_job,
-                                        args=(i,
-                                              model_path,
-                                              return_dict,
-                                              mcts_iters,
-                                              stockfish_depth)
-                                        )
-        procs.append(proci)
-        proci.start()
-
-    for p in procs:
-        p.join()
-
-    for r in return_dict.values():
-        di = DatasetGame()
-        di.loads(r)
-        dataset_games.append(di)
-
-    logger.debug("GAMES PLAYED: {}".format(str(dataset_games)))
-
-    if save_plays:
-        logger.info("Storing the train recorded games")
-        dataset_games.save(model_dir + '/gameplays.json')
-
-    p = multiprocessing.Process(target=train_job,
-                                args=(model_dir, str(dataset_games),))
-    p.start()
-    p.join()
+    print("##################### SUMMARY ###################")
+    print(f"Games played: {games}")
+    print(f"Games won: {len([x for x in won if x == 1])}")
+    print(f"Games drawn: {len([x for x in results if x['result'] == 0])}")
+    print("#################################################")
 
 
 def main():
@@ -193,19 +142,15 @@ def main():
     parser.add_argument('model_dir', metavar='modeldir',
                         help="where to store (and load from)"
                         "the trained model and the logs")
+    parser.add_argument('--games', metavar='games', type=int,
+                        default=1,
+                        help="Number of games to play"
+                        " (default = 1)")
     parser.add_argument('--workers', metavar='workers', type=int,
                         default=1,
                         help="Number of processes to play the games "
                         "(the same as concurrent games)"
                         " (default = 1)")
-    parser.add_argument('--train_rounds', metavar='train_rounds', type=int,
-                        default=1,
-                        help="Number of training cycles")
-    parser.add_argument('--no_save_plays',
-                        action='store_false',
-                        default=True,
-                        help="Whether you want to record the training plays."
-                        "Default: true")
     parser.add_argument('--debug',
                         action='store_true',
                         default=False,
@@ -213,10 +158,6 @@ def main():
     parser.add_argument('--stockfish_depth', metavar='stockfish', type=int,
                         default=15,
                         help="Stockfish tree search depth. (Default = 15)")
-    parser.add_argument('--mcts_iters', metavar='mcts', type=int,
-                        default=900,
-                        help="Max number of iterations of the MTCS during"
-                        "playing phase.")
 
     args = parser.parse_args()
 
@@ -229,20 +170,16 @@ def main():
     multiprocessing.set_start_method('spawn', force=True)
 
     # Recording and saving dataset
-    logger.info("Starting training program.")
-    for i in range(args.train_rounds):
-        logger.info(f"Starting round {i+1} of {args.train_rounds}")
-        mem_before = psutil.Process().memory_percent()
-
-        train(args.model_dir,
+    logger.info("Starting benchmark")
+    mem_before = psutil.Process().memory_percent()
+    benchmark(args.model_dir,
               workers=args.workers,
-              save_plays=args.no_save_plays,
-              mcts_iters=args.mcts_iters,
+              games=args.games,
               stockfish_depth=args.stockfish_depth
               )
 
-        mem_after = psutil.Process().memory_percent()
-        logger.debug(f"RAM INCREMENT {mem_after - mem_before}")
+    mem_after = psutil.Process().memory_percent()
+    logger.debug(f"RAM INCREMENT {mem_after - mem_before}")
 
 
 if __name__ == "__main__":

@@ -8,5 +8,4 @@ pillow==6.2.0
 pytest==5.2.2
 python-chess==0.28.3
 tensorboard==2.0.0
-tensorflow==2.0.0
 tqdm==4.36.1

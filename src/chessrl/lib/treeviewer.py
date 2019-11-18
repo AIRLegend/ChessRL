@@ -4,6 +4,11 @@ import networkx as nx
 from networkx.drawing.nx_agraph import graphviz_layout
 from matplotlib import pyplot as plt
 
+import tempfile
+import webbrowser
+import os
+import numpy as np
+
 
 def draw_tree(tree: Tree):
     g = nx.DiGraph()
@@ -36,3 +41,50 @@ def __add_node(graph: nx.DiGraph, node: Node, labels_dict: dict):
         # labels_dict[hash(c)] = {'val': c.value}
         labels_dict[hash(c)] = '' + "{0:.2g}".format(c.value)
         __add_node(graph, c, labels_dict)
+
+
+def draw_tree_html(tree: Tree):
+    """ Plots a tree on the browser """
+    template_path = path = os.path.abspath(__file__ + "/../") + \
+        "/static/template.html"
+
+    tmp = tempfile.NamedTemporaryFile(delete=False)
+    path = tmp.name + '.html'
+
+    # load template
+    with open(template_path, 'r') as file:
+        filestr = file.read()
+
+    tree_json = __json(tree.root, root=True)
+
+    filestr = filestr.replace("{_DATA_}", str(tree_json))
+
+    with open(path, 'w') as file:
+        file.write(filestr)
+
+    webbrowser.open('file://{}'.format(path))
+
+
+def __json(node, root=False):
+    node_json = {}
+    if root:
+        node_json['text'] = {'title': f'Q+U: {node.get_value()}',
+                             'name': f'Val: {node.value}',
+                             'desc': 'Move: [ROOT]'}
+    else:
+        node_json['text'] = {'title': f'Q+U: {node.get_value()}',
+                             'name': f'Val: {node.value}',
+                             'desc': f'Move: {node.state.board.move_stack[-2]}'
+                             }
+
+    node_json['children'] = [__json(n) for n in node.children]
+
+    try:
+        if root:
+            chosen = np.argmax([n.get_value() for n in node.children])
+            node_json['children'][chosen]['HTMLclass'] = 'nextmove'
+        chosen = np.argmax([n.value for n in node.children])
+        node_json['children'][chosen]['HTMLclass'] = 'maxnode'
+    except ValueError:
+        pass
+    return node_json

@@ -15,11 +15,7 @@ function initBoard(endpoint) {
 
     board1.start()
 
-    $.ajax({
-        type: "GET",
-        url: API_ENDPOINT+'/game',
-        success: handleServerResponse
-    })
+    refreshBoard()
 
     $("#reset-btn").click(handleResetGame)
     $("#switch-btn").click(handleChangeColor)
@@ -46,6 +42,24 @@ function onDrop (source, target, piece, newPos, oldPos, orientation) {
     
 }
 
+/**
+ * Requests the Game state to the server.
+ */
+function refreshBoard() {
+    $.ajax({
+        type: "GET",
+        url: API_ENDPOINT+'/game',
+        success: handleServerResponse
+    })
+}
+
+
+/**
+ * Sends a move to the server encoded as UCI string.
+ * @param source source square
+ * @param target target square
+ * @param promotion letter with the promotion selected to the piece (if any).
+ */
 function sendMove(source, target, promotion=null) {
     if (promotion !== null) {
         target += promotion
@@ -137,6 +151,9 @@ function handlePromotionForm() {
     sendMove(lastMove[0], lastMove[1], selected)
 }
 
+/**
+ * Resets the board (sends a destroy game request which also requests a new one)
+ */
 function handleChangeColor() {
     if (board1.orientation() == "white") {  // Change to black
         handleResetGame(0)
@@ -154,16 +171,12 @@ function handleResetGame(color = 0){
     $.ajax({
         type: "PUT",
         url: API_ENDPOINT + '/game/'+color
-    }).done(res => $.ajax({
-            type: "GET",
-            url: API_ENDPOINT + '/game',
-            success: handleServerResponse
-        }))
+    }).done(res => refreshBoard)
 }
 
 /**
  * Handles the response of the server updating the UI.
- * @param data 
+ * @param data dictionary returned by the server with the game state.
  */
 function handleServerResponse(data) {
     // Update board

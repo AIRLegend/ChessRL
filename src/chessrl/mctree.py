@@ -101,7 +101,7 @@ class Tree(object):
             stockfish (the neural network).
             max_iters: int. Number of interations to run the algorithm.
             verbose: bool. Whether to print the search status.
-            noise: bool, Whether to apply dirichlet noise to the policy.
+            noise: bool. Whether to add Dirichlet noise to the calc policy.
         """
         if verbose:
             pbar = tqdm(total=max_iters)
