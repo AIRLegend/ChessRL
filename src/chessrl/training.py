@@ -123,7 +123,7 @@ def train_job(model_dir, dataset_string):
         chess_agent.load(model_path)
     except OSError:
         logger.warning("Model not found, training a fresh one.")
-    chess_agent.train(data_train, logdir=model_dir, epochs=2)
+    chess_agent.train(data_train, logdir=model_dir, epochs=1)
     logger.info("Saving the agent...")
     chess_agent.save(model_path)
 
