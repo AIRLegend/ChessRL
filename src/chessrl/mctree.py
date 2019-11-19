@@ -41,7 +41,11 @@ class Node(object):
 
     @property
     def is_fully_expanded(self):
-        len(self.unexpanded_actions) == 0
+        return len(self.unexpanded_actions) == 0
+
+    @property
+    def is_terminal_state(self):
+        return self.state.get_result() is not None
 
     @property
     def is_root(self):
@@ -117,21 +121,9 @@ class Tree(object):
             verbose: bool. Whether to print the search status.
             noise: bool. Whether to add Dirichlet noise to the calc policy.
         """
-        if verbose:
-            pbar = tqdm(total=max_iters)
-        #for _ in range(max_iters):
-        #    if verbose:
-        #        pbar.update(1)
-        #    current_node = self.root
-        #    current_node = self.forward(current_node, agent)
-        #    v = self.simulate(current_node, agent)
-        #    self.backprop(current_node, v)
         with ThreadPoolExecutor(max_workers=8) as executor:
             for _ in range(max_iters):
                 executor.submit(self.explore_tree, node=self.root, agent=agent)
-
-        if verbose:
-            del(pbar)
 
         max_val = np.argmax(self.compute_policy(self.root, noise=noise))
 
@@ -157,7 +149,7 @@ class Tree(object):
         with current_node.lock:
             current_node.vloss += VIRTUAL_LOSS
 
-        while current_node.state.get_result() is None:
+        while not current_node.is_terminal_state:
             if not current_node.is_fully_expanded:
                 return self.expand(current_node, agent=agent)
             else:
@@ -175,18 +167,11 @@ class Tree(object):
             node: Node. Node which will be expanded.
         """
         with node.lock:
-            #if node.is_leaf:
-                #legal_moves = [m for m in node.state.get_legal_moves()]
-                #new_states = []
-                #for m in legal_moves:
-                #    new_state = node.state.get_copy()
-                #    new_state.move(m)
-                #    new_states.append(new_state)
-                #node.children = [Node(s, parent=node) for s in new_states]
-            new_state = node.state.get_copy()
-            new_state.move(node.pop_unexpanded_action())
-            new_child = Node(new_state, parent=node)
-            node.children.append(new_child)
+            while not node.is_fully_expanded:
+                new_state = node.state.get_copy()
+                new_state.move(node.pop_unexpanded_action())
+                new_child = Node(new_state, parent=node)
+                node.children.append(new_child)
         return new_child
 
         # If there is an agent, we calculate the prior probabilities
