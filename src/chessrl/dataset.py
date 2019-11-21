@@ -51,7 +51,7 @@ class DatasetGame(object):
     def loads(self, string):
         gamess = json.loads(string)
         for item in gamess:
-            g = game.Game(date=item['date'])
+            g = game.Game(date=item['date'], player_color=item['player_color'])
             if len(item['moves']) > 0:
                 for m in item['moves']:
                     g.move(m)

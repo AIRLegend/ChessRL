@@ -43,7 +43,7 @@ class Agent(Player):
         else:
             if game.get_result() is None:
                 current_tree = mctree.Tree(game)
-                best_move = str(current_tree.select(self, max_iters=max_iters))
+                best_move = current_tree.search_move(self, max_iters=max_iters)
         return best_move
 
     def predict_outcome(self, game:'Game') -> float:  # noqa: E0602, F821

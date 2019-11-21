@@ -2,7 +2,14 @@ import numpy as np
 
 from game import Game
 from player import Player
-from tqdm import tqdm
+
+from concurrent.futures import ThreadPoolExecutor
+from threading import Lock
+
+from simulation import RandomSimulation
+
+
+VIRTUAL_LOSS = 1
 
 
 class Node(object):
@@ -21,18 +28,32 @@ class Node(object):
     def __init__(self, state: 'Game', parent=None):
         self.state = state
         self.children = []
+        self.unexpanded_actions = state.get_legal_moves()
         self.parent = parent
         self.value = 0
         self.visits = 0
         self.prior = 1
+        self.vloss = 0
+        self.lock = Lock()
 
     @property
     def is_leaf(self):
         return len(self.children) == 0
 
     @property
+    def is_fully_expanded(self):
+        return len(self.unexpanded_actions) == 0
+
+    @property
+    def is_terminal_state(self):
+        return self.state.get_result() is not None
+
+    @property
     def is_root(self):
         return self.parent is None
+
+    def pop_unexpanded_action(self):
+        return self.unexpanded_actions.pop()
 
     def get_ucb1(self):
         """ returns the UCB1 metric of the node. """
@@ -50,20 +71,28 @@ class Node(object):
     def get_value(self):
         """Returns the Q + U for the node using the prior probabilities
         given by the neural network.
-            U \\propto P(s,a)/(1+visits);
-            Q = Expected value/visits
+            U = C*Prior*sqrt(sum(son.visitis))/1+self.visits
+            Q = Expected value/visits ((mean value of its children))
         Being C a constant which makes the U (exploration part of the
         equation) more important.
         """
-        C = 3
+        C = 10
         value = 0
         if self.is_root:
             value = 99999999999  # Infinite to avoid division by 0
         else:
             value = (self.value / (1 + self.visits)) +\
                 C * self.prior *\
-                    (np.sqrt(self.parent.visits) / (1 + self.visits))
-        return value
+                    (np.sqrt(np.sum([c.visits for c in self.children])) / (1 + self.visits))
+        return value - self.vloss
+
+    def get_best_child(self):
+        """Get the best child of this node.
+        Returns:
+            best: Node. Child with the max. PUCT value.
+        """
+        best = np.argmax([c.get_value() for c in self.children])
+        return self.children[best]
 
 
 class Tree(object):
@@ -77,11 +106,11 @@ class Tree(object):
         if type(root) is Node:
             self.root = root
         else:
-            self.root = Node(root)
+            self.root = Node(root.get_copy())
 
         self.root.visits = 1
 
-    def select(self, agent: Player, max_iters=200, verbose=False, noise=True):
+    def search_move(self, agent: Player, max_iters=200, verbose=False, noise=True):
         """ Explores and selects the best next state to choose from the root
         state
 
@@ -92,57 +121,14 @@ class Tree(object):
             verbose: bool. Whether to print the search status.
             noise: bool. Whether to add Dirichlet noise to the calc policy.
         """
-        current_node = self.root
-        i = 0
-        if verbose:
-            print("Monte Carlo Tree Search running...")
-            pbar = tqdm(total=max_iters)
-        while(i < max_iters):
-            i += 1
-            if verbose:
-                pbar.update(1)
-            if current_node.is_leaf:
-                if current_node.visits == 0:  # Is new
-                    res = self.simulate(current_node, agent)
-                    self.backprop(current_node, res)
-                else:  # Is not new
-                    self.expand(current_node, agent)
-                    res = current_node.value
-                    try:
-                        max_child = np.argmax([x.value for x in
-                                               current_node.children])
-                        current_node = current_node.children[max_child]
-                        res = self.simulate(current_node, agent)
-                    except ValueError:  # If there were no children
-                        pass
-                    self.backprop(current_node, res)
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            for _ in range(max_iters):
+                executor.submit(self.explore_tree, node=self.root, agent=agent)
 
-                    # Return to root (finish cycle)
-                    current_node = self.root
-            else:
-                ucbs = [u.get_value() for u in current_node.children]
-                best_child = np.argmax(ucbs)
-                current_node = current_node.children[best_child]
-
-        if verbose:
-            del(pbar)
-        tau = max(1, len(self.root.state.board.move_stack))
-        # tau = 10
-        # Select argmax π(a|root) proportional to the visit count
-        policy = np.array([np.power(v.visits, 1 / tau) for v in self.root.children]) / self.root.visits  # noqa:E501
-
-        # apply random noise for ensuring exploration
-        if noise:
-            epsilon = 0.25
-            policy = (1-epsilon) * policy +\
-                np.random.dirichlet([0.03] * len(self.root.children))
-
-        max_val = np.argmax(policy)
-
-        # Greedy selection
-        # max_val = np.argmax([v.get_value() for v in self.root.children])
+        max_val = np.argmax(self.compute_policy(self.root, noise=noise))
 
         # After the last play the oponent has played, so we use the before last
+        # one
         b_mov = Game.NULL_MOVE
         try:
             b_mov = self.root.children[max_val].state.board.move_stack[-2]
@@ -150,7 +136,35 @@ class Tree(object):
             # Should get here if it is not the agent's turn. For example, at
             # the first turn if the agent plays blacks.
             pass
-        return b_mov
+        return str(b_mov)
+
+    def explore_tree(self, node, agent):
+        current_node = self.root
+        current_node = self.select(current_node, agent)
+
+        #with current_node.lock:
+        #    current_node.vloss += VIRTUAL_LOSS
+
+        v = self.simulate(current_node, agent)
+        self.backprop(current_node, v, remove_vloss=True)
+
+        #with current_node.lock:
+        #    current_node.vloss -= VIRTUAL_LOSS
+
+
+    def select(self, node, agent):
+        current_node = node
+
+        with current_node.lock:
+            while not current_node.is_terminal_state:
+                if not current_node.is_fully_expanded:
+                    current_node = self.expand(current_node, agent=agent)
+                    break
+                else:
+                    current_node = current_node.get_best_child()
+
+            current_node.vloss += VIRTUAL_LOSS
+        return current_node
 
     def expand(self, node, agent=None):
         """
@@ -162,22 +176,19 @@ class Tree(object):
         Parameters:
             node: Node. Node which will be expanded.
         """
-        legal_moves = [m for m in node.state.get_legal_moves()]
-        new_states = []
-        for m in legal_moves:
-            new_state = node.state.get_copy()
-            new_state.move(m)
-            new_states.append(new_state)
-
-        node.children = [Node(s, parent=node) for s in new_states]
+        new_state = node.state.get_copy()
+        new_state.move(node.pop_unexpanded_action())
+        new_child = Node(new_state, parent=node)
+        node.children.append(new_child)
+        return new_child
 
         # If there is an agent, we calculate the prior probabilities
         # of selecting each possible move.
-        if agent:
-            # Returns policy distribution for LEGAL moves
-            pi = agent.predict_policy(node.state)
-            for i, c in enumerate(node.children):
-                c.prior = pi[i]
+        #if agent:
+        #    # Returns policy distribution for LEGAL moves
+        #    pi = agent.predict_policy(node.state)
+        #    for i, c in enumerate(node.children):
+        #        c.prior = pi[i]
 
     def simulate(self, node: Node, agent: Player):
         """ Rollout from the current node until a final state.
@@ -188,15 +199,17 @@ class Tree(object):
         Returns:
             results_sim: float, Result of the simulations
         """
-        # VANILLA
-        # sim_pol = RandomMovePolicy()
-        # sim = Simulation(agent, node.state.get_copy(), sim_pol)
-        # results_sim = sim.run(max_moves=200)  # []
+        result = node.state.get_result()
+        if result is None:
+            result = agent.predict_outcome(node.state)
 
-        # NEURAL NET
-        return agent.predict_outcome(node.state)
+            # Random sim
+            # sim = RandomSimulation(node.state.get_copy())
+            # result = sim.run(repetitions=500)
 
-    def backprop(self, node: Node, value: float):
+        return result
+
+    def backprop(self, node: Node, value: float, remove_vloss=False):
         """ Backpropagation phase of the algorithm.
 
         Parameters:
@@ -205,8 +218,30 @@ class Tree(object):
             value: float, value that will be added to all of the ancestors
             untill root.
         """
-        node.visits += 1
-        node.value += value
+        with node.lock:
+            node.visits += 1
+            node.value += value
+            if remove_vloss:
+                node.vloss -= VIRTUAL_LOSS
 
         if node.parent is not None:
             self.backprop(node.parent, value)
+
+    def compute_policy(self, node: Node, noise=True):
+        """ Calculates the policy vector of a state """
+        # Select tau = 1 -> 0 (if number of moves > 30)
+        nb_moves = len(node.state.board.move_stack)
+        tau = 1
+        if nb_moves >= 30:
+            tau = nb_moves / (1 + np.power(nb_moves, 1.3))
+
+        # Select argmax π(a|node) proportional to the visit count
+        policy = np.array([np.power(v.visits, 1 / tau) for v in node.children])\
+            / np.power(node.visits, 1 / tau)
+
+        # apply random noise for ensuring exploration
+        if noise:
+            epsilon = 0.25
+            policy = (1 - epsilon) * policy +\
+                np.random.dirichlet([0.03] * len(node.children))
+        return policy
