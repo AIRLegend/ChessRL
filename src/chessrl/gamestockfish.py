@@ -56,5 +56,6 @@ class GameStockfish(Game):
         self.stockfish = None
 
     def __del__(self):
-        self.free()
-        del(self.board)
+        #self.free()
+        #del(self.board)
+        pass

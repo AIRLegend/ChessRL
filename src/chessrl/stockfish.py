@@ -1,7 +1,11 @@
 import chess
 import chess.engine
+import logging
 
 from player import Player
+
+# Remove anoying warnings of the engine.
+chess.engine.LOGGER.setLevel(logging.ERROR)
 
 
 class Stockfish(Player):
