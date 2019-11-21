@@ -30,8 +30,8 @@ class Agent(Player):
             game: Game. Current game before the move of this agent is made.
             real_game: Whether to use MCTS or only the neural network (self
             play vs playing in a real environment).
-            max_iters: if not playing a real game, the max number of iterations of
-            the MCTS algorithm.
+            max_iters: if not playing a real game, the max number of iterations
+            of the MCTS algorithm.
 
         Returns:
             str. UCI encoded movement.
@@ -60,10 +60,11 @@ class Agent(Player):
             policy = [policy[self.uci_dict[x]] for x in legal_moves]
         return policy
 
-    def train(self, dataset: 'DatasetGame', epochs=1, logdir=None):  # noqa E0602
+    def train(self, dataset: 'DatasetGame', epochs=1, logdir=None, batch_size=1):  # noqa E0602
         """ Trains the model using previous recorded games """
         if len(dataset) > 0:
-            datagen = netencoder.DataGameSequence(dataset, batch_size=1)
+            datagen = netencoder.DataGameSequence(dataset,
+                                                  batch_size=batch_size)
             self.model.train_generator(datagen, epochs=epochs, logdir=logdir)
 
     def save(self, path):
