@@ -2,12 +2,14 @@ from gamestockfish import GameStockfish
 from stockfish import Stockfish
 from dataset import DatasetGame
 from lib.logger import Logger
+from concurrent.futures import ThreadPoolExecutor
+from tqdm import tqdm
 
 import argparse
 import random
 
 
-def play_game(stockfish_bin, dataset, depth=1):
+def play_game(stockfish_bin, dataset, depth=1, tqbar=None):
     is_white = True if random.random() <= .5 else False
 
     g = GameStockfish(stockfish=stockfish_bin,
@@ -19,10 +21,28 @@ def play_game(stockfish_bin, dataset, depth=1):
         g.move(bm)
 
     dataset.append(g)
+    if tqbar is not None:
+        tqbar.update(1)
 
     # Kill stockfish processes
     g.tearup()
     stockf.kill()
+
+
+def gen_data(stockfish_bin, save_path, num_games=100, workers=2):
+    logger = Logger.get_instance()
+    d = DatasetGame()
+    pbar = tqdm(total=num_games)
+
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        for _ in range(num_games):
+            executor.submit(play_game,
+                            stockfish_bin=stockfish_bin,
+                            dataset=d,
+                            tqbar=pbar)
+    pbar.close()
+    logger.info("Saving dataset...")
+    d.save(save_path)
 
 
 def main():
@@ -49,14 +69,14 @@ def main():
     if args.debug:
         logger.set_level(0)
 
-    d = DatasetGame()
+    gen_data(args.stockfish_bin, args.data_path, args.games)
 
-    for i in range(args.games):
-        logger.info(f"Playing game {i} of {args.games}")
-        play_game(args.stockfish_bin, d, depth=args.depth)
+    # for i in range(args.games):
+    #     logger.info(f"Playing game {i} of {args.games}")
+    #     play_game(args.stockfish_bin, d, depth=args.depth)
 
-    logger.info("Saving dataset...")
-    d.save(args.data_path)
+    # logger.info("Saving dataset...")
+    # d.save(args.data_path)
 
 
 if __name__ == "__main__":
