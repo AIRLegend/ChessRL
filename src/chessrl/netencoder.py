@@ -146,7 +146,7 @@ class DataGameSequence(Sequence):
                         be flipped 180 degrees.
     """
 
-    def __init__(self, dataset: 'DatasetGame', batch_size: int = 8,
+    def __init__(self, dataset: 'DatasetGame', batch_size: int = 8,  # noqa:F821
                  random_flips=0.0):
         self.dataset = dataset
         self.batch_size = batch_size
@@ -157,8 +157,8 @@ class DataGameSequence(Sequence):
         return len(self.dataset)
 
     def __getitem__(self, idx):
-        batch = self.dataset.games[idx * self.batch_size:
-                                   (idx + 1) * self.batch_size]
+        batch = self.dataset[idx * self.batch_size:
+                             (idx + 1) * self.batch_size]
         batch_x = []  # Board reprs
         batch_y_policies = []
         batch_y_values = []

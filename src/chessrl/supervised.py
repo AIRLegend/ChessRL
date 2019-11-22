@@ -44,10 +44,10 @@ def train(model_dir, dataset_path, epochs=1):
     """
     logger = Logger.get_instance()
 
+    logger.info("Loading dataset")
+
     data_train = DatasetGame()
-    with open(dataset_path, 'r') as file:
-        dstring = file.read()
-    data_train.loads(dstring)
+    data_train.load(dataset_path)
 
     model_path = get_model_path(model_dir)
 
@@ -57,7 +57,8 @@ def train(model_dir, dataset_path, epochs=1):
         chess_agent.load(model_path)
     except OSError:
         logger.warning("Model not found, training a fresh one.")
-    chess_agent.train(data_train, logdir=model_dir, epochs=epochs)
+    chess_agent.train(data_train, logdir=model_dir, epochs=epochs,
+                      validation_split=0.2, batch_size=32)
     logger.info("Saving the agent...")
     chess_agent.save(model_path)
 

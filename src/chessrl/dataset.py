@@ -9,8 +9,14 @@ class DatasetGame(object):
     serialize/deserialize them as a JSON file. Also, it takes a game and
     returns it as the expanded game.
     """
-    def __init__(self):
+    def __init__(self, games=None):
+        """ Builds a dataset.
+        Parameters:
+            games: List[Game]. List of games
+        """
         self.games = []
+        if games is not None:
+            self.games = games
 
     def augment_game(self, game_base):
         """ Expands a game. For the N movements of a game, it creates
@@ -37,16 +43,10 @@ class DatasetGame(object):
         return augmented
 
     def load(self, path):
-        games_file = []
+        games_file = None
         with open(path, 'r') as f:
-            games_file = json.load(f)
-
-        for item in games_file:
-            g = game.Game(date=item['date'])
-            if len(item['moves']) > 0:
-                for m in item['moves']:
-                    g.move(m)
-                self.games.append(g)
+            games_file = f.read()
+        self.loads(games_file)
 
     def loads(self, string):
         gamess = json.loads(string)
@@ -92,3 +92,6 @@ class DatasetGame(object):
 
     def __len__(self):
         return len(self.games)
+
+    def __getitem__(self, key):
+        return self.games[key]
