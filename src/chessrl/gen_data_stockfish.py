@@ -71,13 +71,6 @@ def main():
 
     gen_data(args.stockfish_bin, args.data_path, args.games)
 
-    # for i in range(args.games):
-    #     logger.info(f"Playing game {i} of {args.games}")
-    #     play_game(args.stockfish_bin, d, depth=args.depth)
-
-    # logger.info("Saving dataset...")
-    # d.save(args.data_path)
-
 
 if __name__ == "__main__":
     main()

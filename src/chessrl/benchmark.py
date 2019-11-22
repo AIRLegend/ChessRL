@@ -10,10 +10,8 @@ from lib.logger import Logger
 from concurrent.futures import ProcessPoolExecutor
 
 import random
-import argparse
 import os
 import traceback
-import psutil
 import multiprocessing
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'
@@ -58,7 +56,7 @@ def get_model_path(directory):
     return path
 
 
-def play_game_job(id: int, model_path, stockfish_depth):
+def play_game_job(id: int, model_path, stockfish_depth, log=False):
     """ Plays a game and returns the result..
 
     Parameters:
@@ -81,7 +79,8 @@ def play_game_job(id: int, model_path, stockfish_depth):
         logger.error("Model not found. Exiting.")
         return None
 
-    logger.info(f"Starting game {id}")
+    if log:
+        logger.info(f"Starting game {id}")
 
     try:
         timer_start = timer()
@@ -90,8 +89,9 @@ def play_game_job(id: int, model_path, stockfish_depth):
             game_env.move(agent_move)
         timer_end = timer()
 
-        logger.info(f"Game {id} done. Result: {game_env.get_result()}. "
-                    f"took {round(timer_end-timer_start, 2)} secs")
+        if log:
+            logger.info(f"Game {id} done. Result: {game_env.get_result()}. "
+                        f"took {round(timer_end-timer_start, 2)} secs")
     except Exception:
         logger.error(traceback.format_exc())
 
@@ -100,7 +100,7 @@ def play_game_job(id: int, model_path, stockfish_depth):
     return res
 
 
-def benchmark(model_dir, workers=1, games=10, stockfish_depth=10):
+def benchmark(model_dir, workers=1, games=10, stockfish_depth=10, log=False):
     """ Plays N games and gets stats about the results.
 
     Parameters:
@@ -108,11 +108,13 @@ def benchmark(model_dir, workers=1, games=10, stockfish_depth=10):
             logs will be saved.
         workers: number of concurrent games (workers which will play the games)
     """
-    logger = Logger.get_instance()
+    multiprocessing.set_start_method('spawn', force=True)
+
+    if log:
+        logger = Logger.get_instance()
+        logger.info(f"Setting up {workers} concurrent games.")
 
     model_path = get_model_path(model_dir)
-
-    logger.info(f"Setting up {workers} concurrent games.")
 
     with ProcessPoolExecutor(workers, initializer=process_initializer)\
             as executor:
@@ -123,64 +125,19 @@ def benchmark(model_dir, workers=1, games=10, stockfish_depth=10):
                                                             model_path,
                                                             stockfish_depth]))
     results = [r.result() for r in results]
-    logger.debug("Calculating stats.")
+    if log:
+        logger.debug("Calculating stats.")
     won = [1
            if x['color'] is True and x['result'] == 1
            or x['color'] is False and x['result'] == -1 else 0  # noqa:W503
            for x in results]
 
-    print("##################### SUMMARY ###################")
-    print(f"Games played: {games}")
-    print(f"Games won: {len([x for x in won if x == 1])}")
-    print(f"Games drawn: {len([x for x in results if x['result'] == 0])}")
-    print("#################################################")
+    if log:
+        print("##################### SUMMARY ###################")
+        print(f"Games played: {games}")
+        print(f"Games won: {len([x for x in won if x == 1])}")
+        print(f"Games drawn: {len([x for x in results if x['result'] == 0])}")
+        print("#################################################")
 
-
-def main():
-    parser = argparse.ArgumentParser(description="Plays some chess games,"
-                                     "stores the result and trains a model.")
-    parser.add_argument('model_dir', metavar='modeldir',
-                        help="where to store (and load from)"
-                        "the trained model and the logs")
-    parser.add_argument('--games', metavar='games', type=int,
-                        default=1,
-                        help="Number of games to play"
-                        " (default = 1)")
-    parser.add_argument('--workers', metavar='workers', type=int,
-                        default=1,
-                        help="Number of processes to play the games "
-                        "(the same as concurrent games)"
-                        " (default = 1)")
-    parser.add_argument('--debug',
-                        action='store_true',
-                        default=False,
-                        help="Log debug messages on screen. Default false.")
-    parser.add_argument('--stockfish_depth', metavar='stockfish', type=int,
-                        default=15,
-                        help="Stockfish tree search depth. (Default = 15)")
-
-    args = parser.parse_args()
-
-    logger = Logger.get_instance()
-    logger.set_level(1)
-
-    if args.debug:
-        logger.set_level(0)
-
-    multiprocessing.set_start_method('spawn', force=True)
-
-    # Recording and saving dataset
-    logger.info("Starting benchmark")
-    mem_before = psutil.Process().memory_percent()
-    benchmark(args.model_dir,
-              workers=args.workers,
-              games=args.games,
-              stockfish_depth=args.stockfish_depth
-              )
-
-    mem_after = psutil.Process().memory_percent()
-    logger.debug(f"RAM INCREMENT {mem_after - mem_before}")
-
-
-if __name__ == "__main__":
-    main()
+    return dict(played=games, won=len([x for x in won if x == 1]),
+                drawn=len([x for x in results if x['result'] == 0]))
