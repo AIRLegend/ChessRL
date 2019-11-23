@@ -92,9 +92,11 @@ class ChessModel(object):
                                                update_freq='epoch')
             callbacks.append(tensorboard_callback)
 
-        self.model.fit_generator(generator, epochs=epochs, verbose=1,
-                                 callbacks=callbacks,
-                                 validation_data=val_gen)
+        self.model.fit_generator(generator,
+                                 epochs=epochs,
+                                 validation_data=val_gen,
+                                 verbose=1,
+                                 callbacks=callbacks)
 
     def __del__(self):
         K.clear_session()

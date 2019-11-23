@@ -149,12 +149,12 @@ class DataGameSequence(Sequence):
     def __init__(self, dataset: 'DatasetGame', batch_size: int = 8,  # noqa:F821
                  random_flips=0.0):
         self.dataset = dataset
-        self.batch_size = batch_size
+        self.batch_size = min(batch_size, len(dataset))
         self.uci_ids = {u: i for i, u in enumerate(get_uci_labels())}
         self.random_flips = random_flips
 
     def __len__(self):
-        return len(self.dataset)
+        return int(len(self.dataset) / self.batch_size)
 
     def __getitem__(self, idx):
         batch = self.dataset[idx * self.batch_size:
@@ -177,5 +177,5 @@ class DataGameSequence(Sequence):
             batch_y_values.extend([targets['result']
                                    for targets in i_augmented])
 
-        return np.array(batch_x), (np.array(batch_y_policies),
-                                   np.array(batch_y_values))
+        return np.asarray(batch_x), (np.asarray(batch_y_policies),
+                                     np.asarray(batch_y_values))

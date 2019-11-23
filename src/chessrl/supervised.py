@@ -58,7 +58,7 @@ def train(model_dir, dataset_path, epochs=1):
     except OSError:
         logger.warning("Model not found, training a fresh one.")
     chess_agent.train(data_train, logdir=model_dir, epochs=epochs,
-                      validation_split=0.2, batch_size=32)
+                      validation_split=0.25, batch_size=16)
     logger.info("Saving the agent...")
     chess_agent.save(model_path)
 
@@ -72,7 +72,7 @@ def main():
     parser.add_argument('data_path', metavar='datadir',
                         help="Path of .JSON dataset.")
     parser.add_argument('--epochs', metavar='epochs', type=int,
-                        default=10)
+                        default=1)
     parser.add_argument('--debug',
                         action='store_true',
                         default=False,
