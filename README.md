@@ -7,16 +7,13 @@ aware that the computational resources to achieve their results is huge, but my 
 it's simply to reach an amateur chess level performance (about 1200-1400 Elo), not
 state of the art.
 
-At this moment, the approach I'm using is similar to the original work but changing
-the AI playing vs itself with Stockfish as the opponent, which is the best engine
-available (the one which was beaten by AlphaZero). This way, I suppose it will
-converge faster towards an "acceptable" game style than following the AlphaZero way.
+At this moment, the approach I'm using is based on pre-training a model using self-play data of a Stockfish algorithm. Later, the idea is to put two models to play agaisnt each other and make selection/merges of weights (RL part).
 
 *Work in progress*
 
 ## Requirements
 The necessary python packages (ATM) are listed in the requirements file.
-Install them with
+You can install them with
 
 ```bash
 pip3 install -r requirements.txt
@@ -39,25 +36,21 @@ If you want to download it manually, you have to put the stockfish executable un
 you want to visualize the Monte Carlo trees.
 
 ## Training
-> **DISCLAIMER:** This is under development and can still contains bugs or  inefficiencies
+> **DISCLAIMER:** This is under development and can still contains bugs or  inefficiencies and modifications are being made.
 
-You can start a training job with
+> **DISCLAIMER 2:** As soon as I get acceptable results, I will also share weights/datasets with this code.
+
+For training an agent in a supervised way you will need a saved dataset of games. The script `gen_data_stockfish.py`is made for generating a JSON with this. This script will play (and record) several games using two Stockfish instances. Execute it first to create this dataset (take a look at it's possible arguments)
+
+Then, start the supervised training:
 
 ```bash
 cd src/chessrl
-python training.py ../../data/models/model0 --workers=2 --train_rounds 10
+python supervised.py ../../data/models/model1 ../../data/dataset_stockfish.json --epochs 2 --bs 4
 ```
-This will create 2 child processes which will play 2 concurrent games, generating a dataset of moves, and then, a model will be trained and saved under `../../data/models/model0` 
-directory (repeating that for 10 rounds). If there is a model already saved there, 
-the script will train that existing model with the new data.
 
-The script will use a GPU if available, if not, the CPU.
-
-To list all the available options run
-
-```bash
-python training.py --help
-```
+**TODO**
+Unsupervised stage.
 
 ## How do I view the progress?
 
@@ -71,12 +64,6 @@ tensorboard --logdir data/models/model0/train
 Also, in the same model directory you will find a `gameplays.json` file which
 contains the recorded training games of the model. With this, we can study its
 behaviour over time.
-
-In addition, the script `benchmark.py` will play several concurrent games agaisnt stockfish and print a summary of all the games. You can execute it with:
-
-```bash
-python benchmark.py ../../data/models/model1 --workers=2 --games 10 --stockfish_depth 10
-```
 
 ## Can I play against the agent?
 
