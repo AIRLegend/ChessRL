@@ -34,7 +34,7 @@ def get_model_path(directory):
     return path
 
 
-def train(model_dir, dataset_path, epochs=1):
+def train(model_dir, dataset_path, epochs=1, batch_size=8):
     """ Loads (or creates, if not found) a model from model_dir, trains it
     and saves the results.
 
@@ -58,7 +58,7 @@ def train(model_dir, dataset_path, epochs=1):
     except OSError:
         logger.warning("Model not found, training a fresh one.")
     chess_agent.train(data_train, logdir=model_dir, epochs=epochs,
-                      validation_split=0.25, batch_size=16)
+                      validation_split=0.25, batch_size=batch_size)
     logger.info("Saving the agent...")
     chess_agent.save(model_path)
 
@@ -73,6 +73,8 @@ def main():
                         help="Path of .JSON dataset.")
     parser.add_argument('--epochs', metavar='epochs', type=int,
                         default=1)
+    parser.add_argument('--bs', metavar='bs', help="Batch size. Default 8", type=int,
+                        default=8)
     parser.add_argument('--debug',
                         action='store_true',
                         default=False,
@@ -86,7 +88,7 @@ def main():
     if args.debug:
         logger.set_level(0)
 
-    train(args.model_dir, args.data_path, args.epochs)
+    train(args.model_dir, args.data_path, args.epochs, args.bs)
 
 
 if __name__ == "__main__":
