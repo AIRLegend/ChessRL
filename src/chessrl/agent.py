@@ -80,7 +80,8 @@ class Agent(Player):
             val_gen = None
 
         train_gen = netencoder.DataGameSequence(games_train,
-                                                batch_size=batch_size)
+                                                batch_size=batch_size,
+                                                random_flips=.1)
 
         self.model.train_generator(train_gen,
                                    epochs=epochs,

@@ -147,7 +147,7 @@ class DataGameSequence(Sequence):
     """
 
     def __init__(self, dataset: 'DatasetGame', batch_size: int = 8,  # noqa:F821
-                 random_flips=0.0):
+                 random_flips=0):
         self.dataset = dataset
         self.batch_size = min(batch_size, len(dataset))
         self.uci_ids = {u: i for i, u in enumerate(get_uci_labels())}
