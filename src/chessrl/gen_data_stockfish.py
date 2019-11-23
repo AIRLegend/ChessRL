@@ -6,15 +6,21 @@ from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
 
 import argparse
-import random
+import numpy as np
 
 
-def play_game(stockfish_bin, dataset, depth=1, tqbar=None):
-    is_white = True if random.random() <= .5 else False
+def play_game(stockfish_bin, dataset, depth=1, tqbar=None, random_dep=False):
+    is_white = True if np.random.random() <= .5 else False
+    game_depth = depth
+    player_depth = depth
+
+    if random_dep:
+        game_depth = int(np.random.normal(depth, 1))
+        player_depth = int(np.random.normal(depth, 1))
 
     g = GameStockfish(stockfish=stockfish_bin,
-                      player_color=is_white, stockfish_depth=1)
-    stockf = Stockfish(is_white, stockfish_bin, 1)
+                      player_color=is_white, stockfish_depth=game_depth)
+    stockf = Stockfish(is_white, stockfish_bin, player_depth)
 
     while g.get_result() is None:
         bm = stockf.best_move(g)
@@ -29,7 +35,8 @@ def play_game(stockfish_bin, dataset, depth=1, tqbar=None):
     stockf.kill()
 
 
-def gen_data(stockfish_bin, save_path, num_games=100, workers=2):
+def gen_data(stockfish_bin, save_path, num_games=100, workers=2,
+             random_dep=False):
     logger = Logger.get_instance()
     d = DatasetGame()
     pbar = tqdm(total=num_games)
@@ -56,6 +63,11 @@ def main():
                         default=10)
     parser.add_argument('--depth', metavar='depth', type=int,
                         default=1, help="Stockfish tree depth.")
+    parser.add_argument('--random_depth',
+                        action='store_true',
+                        default=False,
+                        help="Use normal distribution of depths with "
+                        "mean --depth.")
     parser.add_argument('--debug',
                         action='store_true',
                         default=False,
