@@ -1,5 +1,6 @@
 from agent import Agent
 from gamestockfish import GameStockfish
+from gameagent import GameAgent
 from dataset import DatasetGame
 from timeit import default_timer as timer
 from lib.logger import Logger
@@ -69,9 +70,15 @@ def play_game_job(id: int, model_path, return_dict, mcts_iters,
 
     agent_is_white = True if random.random() <= .5 else False
     chess_agent = Agent(color=agent_is_white)
-    game_env = GameStockfish(player_color=agent_is_white,
-                             stockfish='../../res/stockfish-10-64',
-                             stockfish_depth=stockfish_depth)
+    # game_env = GameStockfish(player_color=agent_is_white,
+    #                          stockfish='../../res/stockfish-10-64',
+    #                          stockfish_depth=stockfish_depth)
+
+    try:
+        game_env = GameAgent(model_path, agent_is_white)
+    except OSError:
+        logger.error("Game agent not found. Exiting...")
+        return
 
     try:
         chess_agent.load(model_path)
