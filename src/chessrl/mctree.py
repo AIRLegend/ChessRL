@@ -7,6 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 from threading import Lock
 
 from simulation import RandomSimulation
+from timeit import default_timer as timer
 
 
 VIRTUAL_LOSS = 1
@@ -121,9 +122,9 @@ class Tree(object):
             verbose: bool. Whether to print the search status.
             noise: bool. Whether to add Dirichlet noise to the calc policy.
         """
-        with ThreadPoolExecutor(max_workers=2) as executor:
+        with ThreadPoolExecutor(max_workers=4) as executor:
             for _ in range(max_iters):
-                executor.submit(self.explore_tree, node=self.root, agent=agent)
+                executor.submit(self.explore_tree, node=self.root, agent=agent, verbose=verbose)
 
         max_val = np.argmax(self.compute_policy(self.root, noise=noise))
 
@@ -138,8 +139,9 @@ class Tree(object):
             pass
         return str(b_mov)
 
-    def explore_tree(self, node, agent):
-        current_node = self.root
+    def explore_tree(self, node, agent, verbose=False):
+        start = timer()
+        current_node = node
         current_node = self.select(current_node, agent)
 
         #with current_node.lock:
@@ -150,7 +152,10 @@ class Tree(object):
 
         #with current_node.lock:
         #    current_node.vloss -= VIRTUAL_LOSS
-
+        end = timer()
+        elap = round(end-start, 2)
+        if verbose:
+            print(f"Elapsed on iteration: {elap} secs")
 
     def select(self, node, agent):
         current_node = node
@@ -164,7 +169,7 @@ class Tree(object):
                     current_node = current_node.get_best_child()
 
             current_node.vloss += VIRTUAL_LOSS
-        return current_node
+            return current_node
 
     def expand(self, node, agent=None):
         """
