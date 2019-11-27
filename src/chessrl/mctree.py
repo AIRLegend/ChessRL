@@ -2,12 +2,14 @@ import numpy as np
 
 from game import Game
 from player import Player
+from asyncwrapper import AsyncWrapper
 
 from concurrent.futures import ThreadPoolExecutor
 from threading import Lock
 
 from simulation import RandomSimulation
 from timeit import default_timer as timer
+from time import sleep
 
 
 VIRTUAL_LOSS = 1
@@ -107,7 +109,7 @@ class Tree(object):
         if type(root) is Node:
             self.root = root
         else:
-            self.root = Node(root.get_copy())
+            self.root = Node(AsyncWrapper(root.get_copy()))
 
         self.root.visits = 1
 
@@ -125,8 +127,12 @@ class Tree(object):
         with ThreadPoolExecutor(max_workers=4) as executor:
             for _ in range(max_iters):
                 executor.submit(self.explore_tree, node=self.root, agent=agent, verbose=verbose)
+        #for i in range(max_iters):
+        #    self.explore_tree(node=self.root, agent=agent, verbose=verbose)
+
 
         max_val = np.argmax(self.compute_policy(self.root, noise=noise))
+
 
         # After the last play the oponent has played, so we use the before last
         # one
@@ -153,23 +159,28 @@ class Tree(object):
         #with current_node.lock:
         #    current_node.vloss -= VIRTUAL_LOSS
         end = timer()
-        elap = round(end-start, 2)
+        elap = round(end - start, 2)
         if verbose:
             print(f"Elapsed on iteration: {elap} secs")
 
     def select(self, node, agent):
         current_node = node
+        while not current_node.is_terminal_state:
+            if not current_node.is_fully_expanded:
+                current_node = self.expand(current_node, agent=agent)
+                break
+            else:
+                current_node = current_node.get_best_child()
 
+        # Wait if game is not updated yet
         with current_node.lock:
-            while not current_node.is_terminal_state:
-                if not current_node.is_fully_expanded:
-                    current_node = self.expand(current_node, agent=agent)
-                    break
-                else:
-                    current_node = current_node.get_best_child()
-
             current_node.vloss += VIRTUAL_LOSS
-            return current_node
+
+        # with current_node.state.done_moving_lock:
+        #     if len(current_node.state.board.move_stack) == len(current_node.parent.state.board.move_stack):
+        #         import pdb; pdb.set_trace()
+
+        return current_node
 
     def expand(self, node, agent=None):
         """
@@ -181,7 +192,7 @@ class Tree(object):
         Parameters:
             node: Node. Node which will be expanded.
         """
-        new_state = node.state.get_copy()
+        new_state = AsyncWrapper(node.state.get_copy())
         new_state.move(node.pop_unexpanded_action())
         new_child = Node(new_state, parent=node)
         node.children.append(new_child)
@@ -204,6 +215,9 @@ class Tree(object):
         Returns:
             results_sim: float, Result of the simulations
         """
+        # while not node.state.is_done_moving:
+        #     sleep(0.001)
+
         result = node.state.get_result()
         if result is None:
             result = agent.predict_outcome(node.state)
