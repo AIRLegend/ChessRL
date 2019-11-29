@@ -6,6 +6,7 @@ from asyncwrapper import AsyncWrapper
 
 from concurrent.futures import ThreadPoolExecutor
 from threading import Lock
+from multiprocessing import Array, Queue
 
 from simulation import RandomSimulation
 from timeit import default_timer as timer
@@ -105,15 +106,16 @@ class Tree(object):
         root: Node or Game. Root state of the tree. You can pass a Node object
         with a Game as state or directly the game (it will make the Node).
     """
-    def __init__(self, root):
+    def __init__(self, root, pool):
         if type(root) is Node:
             self.root = root
         else:
-            self.root = Node(AsyncWrapper(root.get_copy()))
+            self.root = Node(root.get_copy())
 
         self.root.visits = 1
+        self.pool = pool
 
-    def search_move(self, agent: Player, max_iters=200, verbose=False, noise=True):
+    def search_move(self, agent, max_iters=200, verbose=False, noise=True):
         """ Explores and selects the best next state to choose from the root
         state
 
@@ -124,12 +126,13 @@ class Tree(object):
             verbose: bool. Whether to print the search status.
             noise: bool. Whether to add Dirichlet noise to the calc policy.
         """
-        with ThreadPoolExecutor(max_workers=4) as executor:
-            for _ in range(max_iters):
+
+        NUM_THREADS = 6
+        with ThreadPoolExecutor(max_workers=NUM_THREADS) as executor:
+            for i in range(max_iters):
                 executor.submit(self.explore_tree, node=self.root, agent=agent, verbose=verbose)
         #for i in range(max_iters):
         #    self.explore_tree(node=self.root, agent=agent, verbose=verbose)
-
 
         max_val = np.argmax(self.compute_policy(self.root, noise=noise))
 
@@ -147,6 +150,13 @@ class Tree(object):
 
     def explore_tree(self, node, agent, verbose=False):
         start = timer()
+
+        ag = agent.get_copy()
+        pipe = self.pool.pop()
+        #pipe.send(node.state)
+        ag.pipe = pipe
+        agent = ag
+
         current_node = node
         current_node = self.select(current_node, agent)
 
@@ -158,6 +168,8 @@ class Tree(object):
 
         #with current_node.lock:
         #    current_node.vloss -= VIRTUAL_LOSS
+        self.pool.append(pipe)
+
         end = timer()
         elap = round(end - start, 2)
         if verbose:
@@ -192,8 +204,13 @@ class Tree(object):
         Parameters:
             node: Node. Node which will be expanded.
         """
-        new_state = AsyncWrapper(node.state.get_copy())
+        new_state = node.state.get_copy()
         new_state.move(node.pop_unexpanded_action())
+        # Move oponent
+        if new_state.get_result() is None:
+            bm = agent.best_move(new_state, real_game=True)
+            new_state.move(bm)
+
         new_child = Node(new_state, parent=node)
         node.children.append(new_child)
         return new_child
@@ -221,6 +238,7 @@ class Tree(object):
         result = node.state.get_result()
         if result is None:
             result = agent.predict_outcome(node.state)
+
 
             # Random sim
             # sim = RandomSimulation(node.state.get_copy())
