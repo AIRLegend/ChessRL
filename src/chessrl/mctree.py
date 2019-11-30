@@ -152,7 +152,7 @@ class SelfPlayTree(Tree):
         root: Node or Game. Root state of the tree. You can pass a Node object
         with a Game as state or directly the game (it will make the Node).
     """
-    def __init__(self, root, pool, threads=2):
+    def __init__(self, root, pool, threads=6):
         super().__init__(root)
         self.pool = pool
         self.num_threads = threads

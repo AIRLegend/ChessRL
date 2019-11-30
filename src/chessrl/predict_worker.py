@@ -22,19 +22,22 @@ class PredictWorker():
         self.do_run = True
 
     def start(self):
-        self.do_run = True
-        self.predict_worker = threading.Thread(target=self.__work,
-                                               name="prediction_worker")
-        self.predict_worker.start()
+        if self.predict_worker is None:
+            self.do_run = True
+            self.predict_worker = threading.Thread(target=self.__work,
+                                                name="prediction_worker")
+            self.predict_worker.start()
 
     def stop(self):
         self.do_run = False
         self.predict_worker.join()
+        self.predict_worker = None
+        self.flush_pipes()
 
     def flush_pipes(self):
         for p in self.pipes:
             p.close()
-        self.pipes = []
+        self.pipes.clear()
 
     def reload_model(self, model_path):
         self.model = ChessModel(weights=model_path)

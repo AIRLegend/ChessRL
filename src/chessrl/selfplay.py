@@ -6,8 +6,7 @@ from lib.logger import Logger
 
 from dataset import DatasetGame
 from timeit import default_timer as timer
-from tensorflow.keras import backend as K
-import tensorflow as tf
+import multiprocessing
 
 import argparse
 import random
@@ -15,11 +14,20 @@ import os
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'
 
-physical_devices = tf.config.experimental.list_physical_devices('GPU')
-if len(physical_devices) > 0:
-    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
-    tf.config.experimental.set_memory_growth(physical_devices[0], True)
+def process_initializer():
+    """ Initializer of the training threads in in order to detect if there
+    is a GPU available and use it. This is needed to initialize TF inside the
+    child process memory space."""
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'
+    import tensorflow as tf
+    from tensorflow.keras import backend as K
+    physical_devices = tf.config.experimental.list_physical_devices('GPU')
+    if len(physical_devices) > 0:
+        os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+        tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
+
+multiprocessing.set_start_method('spawn', force=True)
 
 def get_model_path(directory):
     """ Finds all the .h5 files (neural net weights) and returns the path to
@@ -69,25 +77,37 @@ def play_game(worker, agent):
         end = timer()
         elapsed = round(end - start, 2)
         logger.debug(f"\tMade move: {bm}, took: {elapsed} secs")
-        break
     logger.debug(gam.get_history())
     return gam
 
 
-def train_model(game, model_path, model_dir):
-    K.clear_session()
-    K.set_floatx('float16')
+def train_model_job(dataset_str, model_path, model_dir):
+    process_initializer()
 
     chess_agent = Agent(True, model_path)
 
     data_train = DatasetGame()
-    data_train.append(game)
+    data_train.loads(dataset_str)
 
     chess_agent.train(data_train, logdir=model_dir, epochs=1,
                       validation_split=0, batch_size=1)
     chess_agent.save(model_path)
 
-    K.clear_session()
+
+def play_game_job(model_path, result_placeholder):
+    process_initializer()
+
+    worker = PredictWorker(model_path)
+
+    worker.start()
+    agent = AgentDistributed(Game.WHITE, worker)
+    gam = play_game(worker, agent)
+    worker.stop()
+
+    d = DatasetGame()
+    d.append(gam)
+    result_placeholder['game'] = str(d)
+
 
 
 def main():
@@ -112,21 +132,27 @@ def main():
         logger.set_level(0)
 
     model_path = get_model_path(args.model_dir)
-    worker = PredictWorker(model_path)
-    agent = AgentDistributed(True, worker)
 
-    games = 1
-    for i in range(games):
-        worker.start()
-        gam = play_game(worker, agent)
-        worker.stop()
-        worker.flush_pipes()
+    manager = multiprocessing.Manager()
+    return_dict = manager.dict()
 
-        logger.debug(f"Training {i}: ")
-        train_model(gam, model_path, args.model_dir)
+    for i in range(args.games):
+        logger.info(f"Game {i} of {args.games}")
+        proci = multiprocessing.Process(target=play_game_job,
+                                            args=(model_path,
+                                                return_dict)
+                                            )
+        proci.start()
+        proci.join()
 
-        logger.info(f"Game {i} done")
-        worker.reload_model(model_path)
+        logger.info(f"\tTraining {i} of {args.games}")
+        proci = multiprocessing.Process(target=train_model_job,
+                                            args=(return_dict['game'],
+                                                model_path,
+                                                args.model_dir)
+                                            )
+        proci.start()
+        proci.join()
 
 
 if __name__ == "__main__":
