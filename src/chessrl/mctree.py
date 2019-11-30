@@ -2,15 +2,11 @@ import numpy as np
 
 from game import Game
 from player import Player
-from asyncwrapper import AsyncWrapper
 
 from concurrent.futures import ThreadPoolExecutor
 from threading import Lock
-from multiprocessing import Array, Queue
 
-from simulation import RandomSimulation
 from timeit import default_timer as timer
-from time import sleep
 
 
 VIRTUAL_LOSS = 1
@@ -87,7 +83,7 @@ class Node(object):
         else:
             value = (self.value / (1 + self.visits)) +\
                 C * self.prior *\
-                    (np.sqrt(np.sum([c.visits for c in self.children])) / (1 + self.visits))
+                (np.sqrt(np.sum([c.visits for c in self.children])) / (1 + self.visits))  # noqa: E501
         return value - self.vloss
 
     def get_best_child(self):
@@ -106,16 +102,16 @@ class Tree(object):
         root: Node or Game. Root state of the tree. You can pass a Node object
         with a Game as state or directly the game (it will make the Node).
     """
-    def __init__(self, root, pool):
+    def __init__(self, root):
         if type(root) is Node:
             self.root = root
         else:
             self.root = Node(root.get_copy())
 
         self.root.visits = 1
-        self.pool = pool
 
-    def search_move(self, agent, max_iters=200, verbose=False, noise=True):
+    def search_move(self, agent, max_iters=200, verbose=False, noise=True,
+                    ai_move=False):
         """ Explores and selects the best next state to choose from the root
         state
 
@@ -125,49 +121,97 @@ class Tree(object):
             max_iters: int. Number of interations to run the algorithm.
             verbose: bool. Whether to print the search status.
             noise: bool. Whether to add Dirichlet noise to the calc policy.
+            ai_move: bool. Whether to return the move that AI will make after
+            our best move
         """
+        pass
 
-        NUM_THREADS = 6
-        with ThreadPoolExecutor(max_workers=NUM_THREADS) as executor:
+    def explore_tree(self, node, agent, verbose=False):
+        pass
+
+    def select(self, node, agent):
+        pass
+
+    def expand(self, node, agent=None):
+        pass
+
+    def simulate(self, node: Node, agent: Player):
+        pass
+
+    def backprop(self, node: Node, value: float, remove_vloss=False):
+        pass
+
+    def compute_policy(self, node: Node, noise=True):
+        pass
+
+
+class SelfPlayTree(Tree):
+    """ Monte Carlo Tree used for self playing.
+
+    Parameters:
+        root: Node or Game. Root state of the tree. You can pass a Node object
+        with a Game as state or directly the game (it will make the Node).
+    """
+    def __init__(self, root, pool, threads=2):
+        super().__init__(root)
+        self.pool = pool
+        self.num_threads = threads
+
+    def search_move(self, agent, max_iters=200, verbose=False, noise=True,
+                    ai_move=False):
+        """ Explores and selects the best next state to choose from the root
+        state
+
+        Parameters:
+            agent: Player. Agent which will be used in the simulations agaisnt
+            stockfish (the neural network).
+            max_iters: int. Number of interations to run the algorithm.
+            verbose: bool. Whether to print the search status.
+            noise: bool. Whether to add Dirichlet noise to the calc policy.
+            ai_move: bool. Whether to return the move that AI will make after
+            our best move
+        """
+        with ThreadPoolExecutor(max_workers=self.num_threads) as executor:
             for i in range(max_iters):
-                executor.submit(self.explore_tree, node=self.root, agent=agent, verbose=verbose)
-        #for i in range(max_iters):
-        #    self.explore_tree(node=self.root, agent=agent, verbose=verbose)
+                executor.submit(self.explore_tree, node=self.root, agent=agent,
+                                verbose=verbose)
 
         max_val = np.argmax(self.compute_policy(self.root, noise=noise))
-
 
         # After the last play the oponent has played, so we use the before last
         # one
         b_mov = Game.NULL_MOVE
+        # The agent move which will be made after the last one of ours.
+        agent_last_mov = Game.NULL_MOVE
         try:
             b_mov = self.root.children[max_val].state.board.move_stack[-2]
+            agent_last_mov = self.root.children[max_val]\
+                .state.board.move_stack[-1]
         except IndexError:
             # Should get here if it is not the agent's turn. For example, at
             # the first turn if the agent plays blacks.
             pass
-        return str(b_mov)
+
+        moves = str(b_mov), str(agent_last_mov)
+
+        if not ai_move:
+            moves = str(b_mov)
+        return moves
 
     def explore_tree(self, node, agent, verbose=False):
         start = timer()
 
-        ag = agent.get_copy()
+        agent_copy = agent.get_copy()
         pipe = self.pool.pop()
-        #pipe.send(node.state)
-        ag.pipe = pipe
-        agent = ag
+        agent_copy.pipe = pipe
 
         current_node = node
-        current_node = self.select(current_node, agent)
 
-        #with current_node.lock:
-        #    current_node.vloss += VIRTUAL_LOSS
-
-        v = self.simulate(current_node, agent)
+        current_node = self.select(current_node, agent_copy)
+        v = self.simulate(current_node, agent_copy)
         self.backprop(current_node, v, remove_vloss=True)
 
-        #with current_node.lock:
-        #    current_node.vloss -= VIRTUAL_LOSS
+        # Return connection
         self.pool.append(pipe)
 
         end = timer()
@@ -182,15 +226,12 @@ class Tree(object):
                 current_node = self.expand(current_node, agent=agent)
                 break
             else:
+                self._update_prior(current_node, agent)
                 current_node = current_node.get_best_child()
 
         # Wait if game is not updated yet
         with current_node.lock:
             current_node.vloss += VIRTUAL_LOSS
-
-        # with current_node.state.done_moving_lock:
-        #     if len(current_node.state.board.move_stack) == len(current_node.parent.state.board.move_stack):
-        #         import pdb; pdb.set_trace()
 
         return current_node
 
@@ -215,30 +256,18 @@ class Tree(object):
         node.children.append(new_child)
         return new_child
 
-        # If there is an agent, we calculate the prior probabilities
-        # of selecting each possible move.
-        #if agent:
-        #    # Returns policy distribution for LEGAL moves
-        #    pi = agent.predict_policy(node.state)
-        #    for i, c in enumerate(node.children):
-        #        c.prior = pi[i]
-
     def simulate(self, node: Node, agent: Player):
         """ Rollout from the current node until a final state.
 
         Parameters:
             node: Node. Game state from which the simulation will be run.
-            agent: Agent. that will be used to play the games (our Neural net).
+            agent: Agent. that will be used to play the games.
         Returns:
-            results_sim: float, Result of the simulations
+            results_sim: float, Result of the playout/predicted value from NN.
         """
-        # while not node.state.is_done_moving:
-        #     sleep(0.001)
-
         result = node.state.get_result()
         if result is None:
             result = agent.predict_outcome(node.state)
-
 
             # Random sim
             # sim = RandomSimulation(node.state.get_copy())
@@ -251,9 +280,11 @@ class Tree(object):
 
         Parameters:
             node: Node. that will be added 1 to vi and the value obtained in
-            the simulation process.
+                the simulation process.
             value: float, value that will be added to all of the ancestors
-            untill root.
+                untill root.
+            remove_vloss: Remove virtual loss from the parent nodes to allow
+                the exploration of the same path by other threads
         """
         with node.lock:
             node.visits += 1
@@ -264,8 +295,15 @@ class Tree(object):
         if node.parent is not None:
             self.backprop(node.parent, value)
 
+    def _update_prior(self, node, agent):
+        """ Update the priors of the children nodes """
+        priors = agent.predict_policy(node.state, mask_legal_moves=True)
+        children = reversed(node.children)
+        for p, n in zip(priors, children):
+            n.prior = p
+
     def compute_policy(self, node: Node, noise=True):
-        """ Calculates the policy vector of a state """
+        """ Calculates the policy vector given a game state """
         # Select tau = 1 -> 0 (if number of moves > 30)
         nb_moves = len(node.state.board.move_stack)
         tau = 1

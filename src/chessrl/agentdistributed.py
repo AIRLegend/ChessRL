@@ -4,29 +4,39 @@ import mctree
 import netencoder
 
 from player import Player
-from model import ChessModel
-from dataset import DatasetGame
 
 
-class Agent(Player):
-    """ AI agent which will play thess.
+class AgentDistributed(Player):
+    """ AI agent which will play chess. This is a parallel friendly version
+    of the Agent. The only difference is that this agent sends the data to
+    a worker process which is responsible of making the predictions. Based on
+    that, it builds a pool of connections to the worker and uses a parallelized
+    version of the Monte Carlo Tree Search.
 
     Parameters:
-        model: Model. Model encapsulating the neural network operations.
         move_encodings: list. List of all possible uci movements.
         uci_dict: dict. Dictionary with mappings 'uci'-> int. It's used
         to predict the policy only over the legal movements.
+        worker: connection to the process executing the NN.
+        pipe: Pipe to send / recieve data from the worker
     """
     def __init__(self, color, worker=None):
         super().__init__(color)
 
-        self.worker = worker
         self.move_encodings = netencoder.get_uci_labels()
         self.uci_dict = {u: i for i, u in enumerate(self.move_encodings)}
 
-        #self.pool_pipes = [worker.get_pipe() for _ in range(4)]
+        self.worker = worker  # Connection to the process executing the NN.
+        # The pool is only passed to the MCSTs for cloning this agent and
+        # paralellizing the search.
 
-    def best_move(self, game:'Game', real_game=False, max_iters=900, verbose=False) -> str:  # noqa: E0602, F821
+        self.pipe = None  # Pipe to send / receive data from the NN worker.
+        if worker:
+            self.pool_pipes = [worker.get_pipe() for _ in range(10)]
+            self.pipe = worker.get_pipe()
+
+    def best_move(self, game:'Game', real_game=False, max_iters=900,  # noqa: E0602, F821
+                  ai_move=True, verbose=False) -> str:
         """ Finds and returns the best possible move (UCI encoded)
 
         Parameters:
@@ -35,6 +45,8 @@ class Agent(Player):
             play vs playing in a real environment).
             max_iters: if not playing a real game, the max number of iterations
             of the MCTS algorithm.
+            verbose: Whether to print debug info
+            ai_move: bool. Whether to return the next move of the AI
 
         Returns:
             str. UCI encoded movement.
@@ -45,21 +57,19 @@ class Agent(Player):
             best_move = game.get_legal_moves()[np.argmax(policy)]
         else:
             if game.get_result() is None:
-                current_tree = mctree.Tree(game)
-                best_move = current_tree.search_move(self, max_iters=max_iters, verbose=verbose)
+                current_tree = mctree.SelfPlayTree(game, self.pool_pipes)
+                best_move = current_tree.search_move(self, max_iters=max_iters,
+                                                     verbose=verbose,
+                                                     ai_move=ai_move)
         return best_move
 
     def predict_outcome(self, game:'Game') -> float:  # noqa: E0602, F821
         """ Predicts the outcome of a game from the current position """
-        # game_matr = netencoder.get_game_state(game)
-        #self.model.predict(np.expand_dims(game_matr, axis=0))[1][0][0]
         response = self.__send_game(game)
         return response[1]
 
     def predict_policy(self, game:'Game', mask_legal_moves=True) -> float:  # noqa: E0602, F821
         """ Predict the policy distribution over all possible moves. """
-        #game_matr = netencoder.get_game_state(game)
-        #policy = self.model.predict(np.expand_dims(game_matr, axis=0))[0][0]
         response = self.__send_game(game)
         policy = response[0]
 
@@ -68,13 +78,19 @@ class Agent(Player):
             policy = [policy[self.uci_dict[x]] for x in legal_moves]
         return policy
 
+    def predict(self, game:'Game'):  # noqa: E0602, F821
+        """ Predicts from a game board and returns policy / value"""
+        response = self.__send_game(game)
+        return response
+
     def __send_game(self, game:'Game'):  # noqa: E0602, F821
-        #pipe = self.pool_pipes.pop()
-        pipe = self.pipe
-        pipe.send(game)
+        """ Sends a game to the neural net. and blocks the caller thread until
+        the prediction is done."""
+        self.pipe.send(game)
         response = self.pipe.recv()
-        #self.pool_pipes.append(pipe)
         return response
 
     def get_copy(self):
-        return Agent(self.color)
+        """ Returns an empty agent with the color of this one """
+        copy = AgentDistributed(self.color)
+        return copy
