@@ -4,26 +4,69 @@ from game import Game
 
 from timeit import default_timer as timer
 import mctree
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from multiprocessing import Manager, Queue, Array
 from multiprocessing.managers import BaseManager
 from multiprocessing.connection import Connection
 import lib.treeviewer as tv
 import time
+import gc
+import os
+import sys
+from timeit import default_timer as timer
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 
-
-
-
+endp = ('localhost', 9999)
 worker = PredictWorker()
 worker.start()
-
-player_color = False
-a1 = AgentDistributed(player_color, worker)
+#
+player_color = True
+a1 = AgentDistributed(player_color, endpoint=endp)
 gam = Game(player_color=player_color)
 
-# TEST THREADS PIPES
-NUM_THREADS = 4
+for i in range(2):
+    start = timer()
+    tree = mctree.SelfPlayTree(gam, a1.pool_conns, threads=8)
+    bm = tree.search_move(a1, max_iters=900, verbose=False, ai_move=True)
+    gam.move(bm[0])
+    gam.move(bm[1])
+    end = timer()
+
+    elapsed = round(end - start, 2)
+    print(f"\tMade move: {bm}, took: {elapsed} secs")
+
+
+worker.stop()
+
+
+worker.start()
+print("**"*20)
+print("ROUND 2")
+print("**"*20)
+a1 = AgentDistributed(player_color, endpoint=endp)
+for i in range(2):
+    start = timer()
+    tree = mctree.SelfPlayTree(gam, a1.pool_conns, threads=8)
+    bm = tree.search_move(a1, max_iters=900, verbose=False, ai_move=True)
+    gam.move(bm[0])
+    gam.move(bm[1])
+    end = timer()
+
+    elapsed = round(end - start, 2)
+    print(f"\tMade move: {bm}, took: {elapsed} secs")
+
+#    del(tree)
+#
+#    del(a1)
+#    del(gam)
+#    worker.stop()
+#    del(worker)
+#
+#    gc.collect()
+#    input("Key to next iter")
+
 #manager = Manager()
 #pipes = manager.list([worker.get_pipe() for i in range(NUM_THREADS)])
 
@@ -46,41 +89,12 @@ NUM_THREADS = 4
 #    pipes.put(worker.get_pipe())
 
 
-if player_color is False:
-    gam.move(a1.best_move(gam, real_game=True))
 
-print(f" AGENT_ MOVE: {a1.best_move(gam, verbose=True, ai_move=True, max_iters=100)}")
-
-worker.stop()
+#worker.stop()
 
 
 
 
 
 
-#print(a1.predict_outcome(gam))
-
-#pool = [worker.get_pipe() for _ in range(10)]
-#tree = mctree.Tree(gam, pool)
-##
-#start = timer()
-#bm = tree.search_move(a1, verbose=True, max_iters=900)
-#end = timer()
-#elap = round(end - start, 2)
-##
-#print(bm)
-#print(f"TOOK {elap} seconds")
-#tv.draw_tree_html(tree)
-
-
-# while gam.get_result() is None:
-#     start = timer()
-#     bm = a1.best_move(gam, real_game=False, max_iters=100, verbose=True)
-#     end = timer()
-#     gam.move(bm)
-#
-#     elap = round(end - start, 2)
-#     print(f"My move took: {elap} seconds")
-
-print(f"{gam.get_history()}")
 

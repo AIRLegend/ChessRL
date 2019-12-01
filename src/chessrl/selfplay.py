@@ -55,7 +55,7 @@ def get_model_path(directory):
     return path
 
 
-def play_game(worker, agent):
+def play_game(agent):
     logger = Logger.get_instance()
 
     player_color = True if random.random() >= 0.5 else False
@@ -71,7 +71,7 @@ def play_game(worker, agent):
     while gam.get_result() is None:
         start = timer()
         bm, am = agent.best_move(gam, real_game=False, ai_move=True,
-                                 max_iters=900)
+                                 max_iters=10)
         gam.move(bm)  # Make our move
         gam.move(am)  # Make oponent move
         end = timer()
@@ -81,7 +81,16 @@ def play_game(worker, agent):
     return gam
 
 
+def play_game_job(endpoint, result_placeholder):
+    agent = AgentDistributed(Game.WHITE, endpoint=endpoint)
+    gam = play_game(agent)
+
+    d = DatasetGame()
+    d.append(gam)
+    result_placeholder['game'] = str(d)
+
 def train_model_job(dataset_str, model_path, model_dir):
+    return
     process_initializer()
 
     chess_agent = Agent(True, model_path)
@@ -92,22 +101,6 @@ def train_model_job(dataset_str, model_path, model_dir):
     chess_agent.train(data_train, logdir=model_dir, epochs=1,
                       validation_split=0, batch_size=1)
     chess_agent.save(model_path)
-
-
-def play_game_job(model_path, result_placeholder):
-    process_initializer()
-
-    worker = PredictWorker(model_path)
-
-    worker.start()
-    agent = AgentDistributed(Game.WHITE, worker)
-    gam = play_game(worker, agent)
-    worker.stop()
-
-    d = DatasetGame()
-    d.append(gam)
-    result_placeholder['game'] = str(d)
-
 
 
 def main():
@@ -133,19 +126,25 @@ def main():
 
     model_path = get_model_path(args.model_dir)
 
+    endpoint = ('localhost', 9999)
+    worker = PredictWorker(model_path=model_path, endpoint=endpoint)
+
     manager = multiprocessing.Manager()
     return_dict = manager.dict()
 
     for i in range(args.games):
-        logger.info(f"Game {i} of {args.games}")
+        worker.start()
+        logger.info(f"Game {i+1} of {args.games}")
         proci = multiprocessing.Process(target=play_game_job,
-                                            args=(model_path,
+                                            args=(endpoint,
                                                 return_dict)
                                             )
         proci.start()
         proci.join()
 
-        logger.info(f"\tTraining {i} of {args.games}")
+        worker.stop()
+
+        logger.info(f"\tTraining {i+1} of {args.games}")
         proci = multiprocessing.Process(target=train_model_job,
                                             args=(return_dict['game'],
                                                 model_path,

@@ -5,6 +5,8 @@ import netencoder
 
 from player import Player
 
+from multiprocessing.connection import Client
+
 
 class AgentDistributed(Player):
     """ AI agent which will play chess. This is a parallel friendly version
@@ -20,20 +22,18 @@ class AgentDistributed(Player):
         worker: connection to the process executing the NN.
         pipe: Pipe to send / recieve data from the worker
     """
-    def __init__(self, color, worker=None):
+    def __init__(self, color, worker=None, endpoint=None):
         super().__init__(color)
 
         self.move_encodings = netencoder.get_uci_labels()
         self.uci_dict = {u: i for i, u in enumerate(self.move_encodings)}
 
-        self.worker = worker  # Connection to the process executing the NN.
-        # The pool is only passed to the MCSTs for cloning this agent and
-        # paralellizing the search.
+        self.conn = None
 
-        self.pipe = None  # Pipe to send / receive data from the NN worker.
-        if worker:
-            self.pool_pipes = [worker.get_pipe() for _ in range(10)]
-            self.pipe = worker.get_pipe()
+        if endpoint is not None:
+            self.address = endpoint
+            self.pool_conns = [Client(self.address) for i in range(10)]
+            self.conn = Client(self.address)
 
     def best_move(self, game:'Game', real_game=False, max_iters=900,  # noqa: E0602, F821
                   ai_move=True, verbose=False) -> str:
@@ -57,7 +57,7 @@ class AgentDistributed(Player):
             best_move = game.get_legal_moves()[np.argmax(policy)]
         else:
             if game.get_result() is None:
-                current_tree = mctree.SelfPlayTree(game, self.pool_pipes)
+                current_tree = mctree.SelfPlayTree(game, self.pool_conns)
                 best_move = current_tree.search_move(self, max_iters=max_iters,
                                                      verbose=verbose,
                                                      ai_move=ai_move)
@@ -86,8 +86,8 @@ class AgentDistributed(Player):
     def __send_game(self, game:'Game'):  # noqa: E0602, F821
         """ Sends a game to the neural net. and blocks the caller thread until
         the prediction is done."""
-        self.pipe.send(game)
-        response = self.pipe.recv()
+        self.conn.send(game)
+        response = self.conn.recv()
         return response
 
     def get_copy(self):

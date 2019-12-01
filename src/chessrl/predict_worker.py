@@ -5,6 +5,7 @@ import numpy as np
 import multiprocessing
 from multiprocessing.connection import wait
 import threading
+import socket
 
 
 class PredictWorker():
@@ -14,52 +15,77 @@ class PredictWorker():
 
     def __init__(self,
                  model_path='../../data/models/model1-unsuperv/model-0.h5',
-                 **kwargs):
-        self.kwargs = kwargs
+                 endpoint=('localhost', 9999) 
+                 ):
         self.model = ChessModel(weights=model_path)
-        self.pipes = []
-        self.predict_worker = None
-        self.do_run = True
+        self.address = endpoint
+        self.listener = None
+        self.connections = []
 
     def start(self):
-        if self.predict_worker is None:
+        if self.listener is None:
+            self.listener = multiprocessing.connection.Listener(self.address)
+            self.listener._listener._socket.settimeout(4)
+
             self.do_run = True
             self.predict_worker = threading.Thread(target=self.__work,
                                                 name="prediction_worker")
             self.predict_worker.start()
+            self.conn_worker = threading.Thread(target=self.__accept_connections,
+                                                name="connection_worker")
+            self.conn_worker .start()
+
 
     def stop(self):
         self.do_run = False
-        self.predict_worker.join()
-        self.predict_worker = None
-        self.flush_pipes()
+        for c in self.connections:
+            c.close()
+        self.connections = []
+        self.listener.close()
 
-    def flush_pipes(self):
-        for p in self.pipes:
-            p.close()
-        self.pipes.clear()
+        self.conn_worker.join()
+        self.predict_worker.join()
+        
+        self.listener = None
+        self.predict_worker = None
+        self.conn_worker = None
 
     def reload_model(self, model_path):
         self.model = ChessModel(weights=model_path)
 
-    def get_pipe(self):
-        mine, yours = multiprocessing.Pipe()
-        self.pipes.append(mine)
-        return yours
-
     def __work(self):
+        """ This method does the actual work of taking batches of requests and 
+        send the responses back to the clients.
+        """
         while self.do_run:
-            ready = wait(self.pipes, timeout=0.0001)
+            ready = wait(self.connections, timeout=0.0001)
             if not ready:
                 continue
-            data, result_pipes = [], []
-            for pipe in ready:
-                while pipe.poll():
-                    g = pipe.recv()
-                    data.append(netencoder.get_game_state(g))
-                    result_pipes.append(pipe)
+            data, result_conns = [], []
+            try:
+                for conn in ready:
+                    while conn.poll():
+                        g = conn.recv()
+                        data.append(netencoder.get_game_state(g))
+                        result_conns.append(conn)
+            except (OSError, EOFError) as e:
+                # If the client closed the connection during the wait, we 
+                # discard it and continue.
+                continue
 
-            data = np.asarray(data, dtype=np.float16)
-            policies, values = self.model.predict(data)
-            for pipe, p, v in zip(result_pipes, policies, values):
-                pipe.send((p, float(v)))
+            if len(data) > 0:
+                data = np.asarray(data, dtype=np.float16)
+                policies, values = self.model.predict(data)
+                for conn, p, v in zip(result_conns, policies, values):
+                    conn.send((p, float(v)))
+
+    def __accept_connections(self):
+        """ This method will accept all new connections and put them on the client
+        list.
+        """
+        while self.do_run:
+            try:
+                new_con = self.listener.accept()
+            except (socket.timeout, OSError):
+                continue
+            self.connections.append(new_con)

@@ -3,7 +3,7 @@ import numpy as np
 from game import Game
 from player import Player
 
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor 
 from threading import Lock
 
 from timeit import default_timer as timer
@@ -143,7 +143,7 @@ class Tree(object):
 
     def compute_policy(self, node: Node, noise=True):
         pass
-
+    
 
 class SelfPlayTree(Tree):
     """ Monte Carlo Tree used for self playing.
@@ -172,7 +172,7 @@ class SelfPlayTree(Tree):
             our best move
         """
         with ThreadPoolExecutor(max_workers=self.num_threads) as executor:
-            for i in range(max_iters):
+            for _ in range(max_iters):
                 executor.submit(self.explore_tree, node=self.root, agent=agent,
                                 verbose=verbose)
 
@@ -199,22 +199,21 @@ class SelfPlayTree(Tree):
         return moves
 
     def explore_tree(self, node, agent, verbose=False):
-        start = timer()
-
         agent_copy = agent.get_copy()
-        pipe = self.pool.pop()
-        agent_copy.pipe = pipe
+        c = self.pool.pop()
+        agent_copy.conn = c
 
         current_node = node
 
+        start = timer()
         current_node = self.select(current_node, agent_copy)
+        end = timer()
         v = self.simulate(current_node, agent_copy)
         self.backprop(current_node, v, remove_vloss=True)
 
         # Return connection
-        self.pool.append(pipe)
+        self.pool.append(c)
 
-        end = timer()
         elap = round(end - start, 2)
         if verbose:
             print(f"Elapsed on iteration: {elap} secs")
@@ -226,7 +225,6 @@ class SelfPlayTree(Tree):
                 current_node = self.expand(current_node, agent=agent)
                 break
             else:
-                self._update_prior(current_node, agent)
                 current_node = current_node.get_best_child()
 
         # Wait if game is not updated yet
@@ -254,6 +252,13 @@ class SelfPlayTree(Tree):
 
         new_child = Node(new_state, parent=node)
         node.children.append(new_child)
+
+        # If this node was the last one before fully expand the node
+        # we calculate the priors of the children
+        # (only do it once)
+        if node.is_fully_expanded:
+            self._update_prior(node, agent)
+
         return new_child
 
     def simulate(self, node: Node, agent: Player):
@@ -320,3 +325,15 @@ class SelfPlayTree(Tree):
             policy = (1 - epsilon) * policy +\
                 np.random.dirichlet([0.03] * len(node.children))
         return policy
+
+    #def __del__(self):
+    #    def delnode(node):
+    #        for c in node.children:
+    #            print("Cleaning node...")
+    #            del(c.state)
+    #            del(c)
+
+    #    delnode(self.root)
+    #    self.pool = None
+    #    self.pipe = None
+
