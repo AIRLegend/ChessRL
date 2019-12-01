@@ -14,13 +14,13 @@ import os
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'
 
+
 def process_initializer():
     """ Initializer of the training threads in in order to detect if there
     is a GPU available and use it. This is needed to initialize TF inside the
     child process memory space."""
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'
     import tensorflow as tf
-    from tensorflow.keras import backend as K
     physical_devices = tf.config.experimental.list_physical_devices('GPU')
     if len(physical_devices) > 0:
         os.environ['CUDA_VISIBLE_DEVICES'] = '0'
@@ -28,6 +28,7 @@ def process_initializer():
 
 
 multiprocessing.set_start_method('spawn', force=True)
+
 
 def get_model_path(directory):
     """ Finds all the .h5 files (neural net weights) and returns the path to
@@ -71,7 +72,7 @@ def play_game(agent):
     while gam.get_result() is None:
         start = timer()
         bm, am = agent.best_move(gam, real_game=False, ai_move=True,
-                                 max_iters=10)
+                                 max_iters=500)
         gam.move(bm)  # Make our move
         gam.move(am)  # Make oponent move
         end = timer()
@@ -89,8 +90,8 @@ def play_game_job(endpoint, result_placeholder):
     d.append(gam)
     result_placeholder['game'] = str(d)
 
+
 def train_model_job(dataset_str, model_path, model_dir):
-    return
     process_initializer()
 
     chess_agent = Agent(True, model_path)
@@ -136,9 +137,9 @@ def main():
         worker.start()
         logger.info(f"Game {i+1} of {args.games}")
         proci = multiprocessing.Process(target=play_game_job,
-                                            args=(endpoint,
-                                                return_dict)
-                                            )
+                                        args=(endpoint,
+                                              return_dict)
+                                        )
         proci.start()
         proci.join()
 
@@ -146,10 +147,10 @@ def main():
 
         logger.info(f"\tTraining {i+1} of {args.games}")
         proci = multiprocessing.Process(target=train_model_job,
-                                            args=(return_dict['game'],
-                                                model_path,
-                                                args.model_dir)
-                                            )
+                                        args=(return_dict['game'],
+                                              model_path,
+                                              args.model_dir)
+                                        )
         proci.start()
         proci.join()
 

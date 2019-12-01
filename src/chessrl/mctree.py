@@ -3,7 +3,7 @@ import numpy as np
 from game import Game
 from player import Player
 
-from concurrent.futures import ThreadPoolExecutor 
+from concurrent.futures import ThreadPoolExecutor
 from threading import Lock
 
 from timeit import default_timer as timer
@@ -143,7 +143,7 @@ class Tree(object):
 
     def compute_policy(self, node: Node, noise=True):
         pass
-    
+
 
 class SelfPlayTree(Tree):
     """ Monte Carlo Tree used for self playing.

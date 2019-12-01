@@ -56,7 +56,7 @@ Once we have a pretrained model, we can move to the self-play phase. The incharg
 
 ```bash
 cd src/chessrl
-python selfplay.py ../../data/models/model1 --games 100
+python selfplay.py ../../data/models/model1-superv --games 100
 ```
 
 
