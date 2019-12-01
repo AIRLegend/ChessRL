@@ -19,7 +19,7 @@ You can install them with
 pip3 install -r requirements.txt
 ```
 
-Tensorflow is also needed, but you must install either `tensorflow`or `tensorflow-gpu`.
+Tensorflow is also needed, but you must install either `tensorflow` or `tensorflow-gpu` (for the development I used >= TF 2.0).
 
 Also, you need to download the specific 
 [stockfish binary](https://stockfishchess.org/download/) for your platform,
@@ -32,32 +32,40 @@ chmod +x get_stockfish.sh
 ```
 If you want to download it manually, you have to put the stockfish executable under `res/stockfish-10-64` path, in order to the training script to detect it.
 
->**OPTIONAL**: Apart from those packages, you should have Graphviz installed in your computer if
-you want to visualize the Monte Carlo trees.
 
 ## Training
 > **DISCLAIMER:** This is under development and can still contains bugs or  inefficiencies and modifications are being made.
 
 > **DISCLAIMER 2:** As soon as I get acceptable results, I will also share weights/datasets with this code.
 
-For training an agent in a supervised way you will need a saved dataset of games. The script `gen_data_stockfish.py`is made for generating a JSON with this. This script will play (and record) several games using two Stockfish instances. Execute it first to create this dataset (take a look at it's possible arguments)
+For training an agent in a supervised way you will need a saved dataset of games. The script `gen_data_stockfish.py` is made for generating a JSON with this. This script will play (and record) several games using two Stockfish instances. Execute it first to create this dataset (take a look at it's possible arguments)
 
-Then, start the supervised training:
+```bash
+cd src/chessrl
+python gen_data_stockfish.py ../../data/dataset_stockfish.json --games 100
+```
+
+Once we have a training dataset (generated or your own adapted), start the supervised training with:
 
 ```bash
 cd src/chessrl
 python supervised.py ../../data/models/model1 ../../data/dataset_stockfish.json --epochs 2 --bs 4
 ```
 
-**TODO**
-Unsupervised stage.
+Once we have a pretrained model, we can move to the self-play phase. The incharged of this process is the `selfplay.py` script, which will fire up a instance of the model which play agaisnt itself and after each one, makes a training round (saving the model and the results). Please, take a look at the possible arguments. However, here you have an example. (Keep in mind that this is an expensive process which takes a considerable amount of time per move).
+
+```bash
+cd src/chessrl
+python selfplay.py ../../data/models/model1 --games 100
+```
+
 
 ## How do I view the progress?
 
 The neural network trainning evolution can be monitored with Tensorboard, simply:
 
 ```bash
-tensorboard --logdir data/models/model0/train
+tensorboard --logdir data/models/model1/train
 ```
 (And set the "Horizontal axis" to "WALL" for viewing all the diferent runs.)
 
