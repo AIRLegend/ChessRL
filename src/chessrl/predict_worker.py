@@ -71,7 +71,7 @@ class PredictWorker():
         send the responses back to the clients.
         """
         while self.do_run:
-            ready = wait(self.connections, timeout=0.0001)
+            ready = wait(self.connections, timeout=0.001)
             if not ready:
                 continue
             data, result_conns = [], []

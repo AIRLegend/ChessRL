@@ -72,7 +72,7 @@ def play_game(agent):
     while gam.get_result() is None:
         start = timer()
         bm, am = agent.best_move(gam, real_game=False, ai_move=True,
-                                 max_iters=500)
+                                 max_iters=900)
         gam.move(bm)  # Make our move
         gam.move(am)  # Make oponent move
         end = timer()
@@ -82,8 +82,9 @@ def play_game(agent):
     return gam
 
 
-def play_game_job(endpoint, result_placeholder):
-    agent = AgentDistributed(Game.WHITE, endpoint=endpoint)
+def play_game_job(endpoint, result_placeholder, threads):
+    agent = AgentDistributed(Game.WHITE, endpoint=endpoint,
+                             num_threads=threads)
     gam = play_game(agent)
 
     d = DatasetGame()
@@ -112,6 +113,8 @@ def main():
                         "the trained model and the logs")
     parser.add_argument('--games', metavar='games', type=int,
                         default=1)
+    parser.add_argument('--threads', metavar='threads', type=int,
+                        default=6)
     parser.add_argument('--debug',
                         action='store_true',
                         default=False,
@@ -138,7 +141,8 @@ def main():
         logger.info(f"Game {i+1} of {args.games}")
         proci = multiprocessing.Process(target=play_game_job,
                                         args=(endpoint,
-                                              return_dict)
+                                              return_dict,
+                                              args.threads)
                                         )
         proci.start()
         proci.join()
