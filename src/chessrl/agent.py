@@ -24,7 +24,7 @@ class Agent(Player):
         self.move_encodings = netencoder.get_uci_labels()
         self.uci_dict = {u: i for i, u in enumerate(self.move_encodings)}
 
-    def best_move(self, game:'Game', real_game=False, max_iters=900) -> str:  # noqa: E0602, F821
+    def best_move(self, game:'Game', real_game=False, max_iters=900, verbose=False) -> str:  # noqa: E0602, F821
         """ Finds and returns the best possible move (UCI encoded)
 
         Parameters:
@@ -44,7 +44,7 @@ class Agent(Player):
         else:
             if game.get_result() is None:
                 current_tree = mctree.Tree(game)
-                best_move = current_tree.search_move(self, max_iters=max_iters)
+                best_move = current_tree.search_move(self, max_iters=max_iters, verbose=verbose)
         return best_move
 
     def predict_outcome(self, game:'Game') -> float:  # noqa: E0602, F821
@@ -93,3 +93,6 @@ class Agent(Player):
 
     def load(self, path):
         self.model.load_weights(path)
+
+    def clone(self):
+        return Agent(self.color, '../../data/models/model1-unsuperv/model-0.h5')

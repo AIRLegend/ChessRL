@@ -1,7 +1,7 @@
 import chess
 
 from game import Game
-from agent import Agent
+from agentdistributed import Agent
 
 
 class GameAgent(Game):
@@ -9,7 +9,7 @@ class GameAgent(Game):
 
     def __init__(self,
                  agent,
-                 player_color=True, #TODO: Game.WHITE
+                 player_color=Game.WHITE,
                  board=None,
                  date=None):
         super().__init__(board=board, player_color=player_color, date=date)
@@ -29,15 +29,18 @@ class GameAgent(Game):
         Params:
             movement: str, Movement in UCI notation (f2f3, g8f6...)
         """
+        made_movement = False
         # If agent moves first (whites and first move)
         if self.agent.color and len(self.board.move_stack) == 0:
             agents_best_move = self.agent.best_move(self, real_game=True)
             self.board.push(chess.Move.from_uci(agents_best_move))
+            made_movement = True
         else:
             made_movement = super().move(movement)
             if made_movement and self.get_result() is None:
                 agents_best_move = self.agent.best_move(self, real_game=True)
                 self.board.push(chess.Move.from_uci(agents_best_move))
+        return made_movement
 
     def get_copy(self):
         return GameAgent(board=self.board.copy(), agent=self.agent,

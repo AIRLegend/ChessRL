@@ -141,3 +141,7 @@ def benchmark(model_dir, workers=1, games=10, stockfish_depth=10, log=False):
 
     return dict(played=games, won=len([x for x in won if x == 1]),
                 drawn=len([x for x in results if x['result'] == 0]))
+
+
+if __name__ == "__main__":
+    benchmark('../../data/models/model1-unsuperv', workers=2, log=True)
