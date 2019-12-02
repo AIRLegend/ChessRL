@@ -15,14 +15,17 @@ class AgentDistributed(Player):
     that, it builds a pool of connections to the worker and uses a parallelized
     version of the Monte Carlo Tree Search.
 
-    Parameters:
+    Attributes:
         move_encodings: list. List of all possible uci movements.
         uci_dict: dict. Dictionary with mappings 'uci'-> int. It's used
         to predict the policy only over the legal movements.
-        worker: connection to the process executing the NN.
-        pipe: Pipe to send / recieve data from the worker
+        endpoint: (str, int). Tuple with the address, port of the PredictWorker
+        num_threads: int. Number of threads to use during MTCS
+        conn: Connection. Connection to the prediction worker that is in use
+        pool_conns: list[Connection]. Pool of connections that will be used
+        during MCTS.
     """
-    def __init__(self, color, worker=None, endpoint=None, num_threads=6):
+    def __init__(self, color, endpoint=None, num_threads=6):
         super().__init__(color)
 
         self.move_encodings = netencoder.get_uci_labels()

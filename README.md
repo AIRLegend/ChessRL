@@ -75,7 +75,7 @@ behaviour over time.
 
 ## Can I play against the agent?
 
-Yup. Under `src/webplayer` you will find a Flask app which deploys a web interface to play against the trained agent. There is another README with more information.
+Yes. Under `src/webplayer` you will find a Flask app which deploys a web interface to play against the trained agent. There is another README with more information.
 
 
 ## Literature
