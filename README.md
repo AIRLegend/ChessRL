@@ -7,7 +7,10 @@ aware that the computational resources to achieve their results is huge, but my 
 it's simply to reach an amateur chess level performance (about 1200-1400 Elo), not
 state of the art.
 
-At this moment, the approach I'm using is based on pre-training a model using self-play data of a Stockfish algorithm. Later, the idea is to put two models to play agaisnt each other and make selection/merges of weights (RL part).
+At this moment, the approach I'm using is based on pre-training a model using self-play data of a Stockfish 
+algorithm. Later, the idea is to put two models to play agaisnt each other and make selection/merges of weights (RL part).
+
+If you want to reuse this code on your project, and have any doubt [here](https://github.com/AIRLegend/ChessRL/blob/master/DOCS.md) you will find some explanation about the most important classes. Also, feel free to open an issue on this repo to ask.
 
 *Work in progress*
 
@@ -38,7 +41,9 @@ If you want to download it manually, you have to put the stockfish executable un
 
 > **DISCLAIMER 2:** As soon as I get acceptable results, I will also share weights/datasets with this code.
 
-For training an agent in a supervised way you will need a saved dataset of games. The script `gen_data_stockfish.py` is made for generating a JSON with this. This script will play (and record) several games using two Stockfish instances. Execute it first to create this dataset (take a look at it's possible arguments)
+For training an agent in a supervised way you will need a saved dataset of games. The script `gen_data_stockfish.py` is made for generating a JSON with this. This script will play (and record) several games using two Stockfish instances. Execute it first to create this dataset (take a look at it's possible arguments).
+
+The main purpose of this part is to pre-train the model to make the policy head of the network to reliably predict the game outcome. This will be useful during the self-play phase as the MCTS will make better move policies (reducing the training time).
 
 ```bash
 cd src/chessrl
