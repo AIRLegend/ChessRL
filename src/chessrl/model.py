@@ -66,7 +66,7 @@ class ChessModel(object):
             self.model.load_weights(weights)
 
         if compile_model:
-            self.model.compile(Adam(lr=0.002),
+            self.model.compile(Adam(lr=1e-3),
                                loss=['categorical_crossentropy',
                                      'mean_squared_error'],
                                metrics={'policy_out': 'accuracy'})
@@ -88,8 +88,8 @@ class ChessModel(object):
         if logdir is not None:
             tensorboard_callback = TensorBoard(log_dir=logdir,
                                                histogram_freq=0,
-                                               write_graph=True,
-                                               update_freq='epoch')
+                                               write_graph=False,
+                                               update_freq=1)
             callbacks.append(tensorboard_callback)
 
         self.model.fit_generator(generator,
