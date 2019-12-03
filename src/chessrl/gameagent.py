@@ -1,7 +1,7 @@
 import chess
 
 from game import Game
-from agentdistributed import Agent
+from agent import Agent
 
 
 class GameAgent(Game):

@@ -66,7 +66,7 @@ class ChessModel(object):
             self.model.load_weights(weights)
 
         if compile_model:
-            self.model.compile(Adam(lr=1e-3),
+            self.model.compile(Adam(lr=0.002),
                                loss=['categorical_crossentropy',
                                      'mean_squared_error'],
                                metrics={'policy_out': 'accuracy'})
