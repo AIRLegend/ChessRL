@@ -2,7 +2,9 @@ from model import ChessModel
 import netencoder
 
 import numpy as np
+import traceback
 import multiprocessing
+import threading
 from multiprocessing.connection import wait
 import threading
 import socket
@@ -21,6 +23,8 @@ class PredictWorker():
         self.address = endpoint
         self.listener = None
         self.connections = []
+        self.to_ignore = set()
+        self.conn_lock = threading.Lock()
 
     def start(self):
         """ Opens a socket to listen to new connections and creates two
@@ -70,21 +74,44 @@ class PredictWorker():
         """ This method does the actual work of taking batches of requests and
         send the responses back to the clients.
         """
+
         while self.do_run:
-            ready = wait(self.connections, timeout=0.001)
+            try:
+                ready = wait(self.connections, timeout=0.001)
+            except OSError:
+                # If there is any connection closed (our side), we delete it.
+                with self.conn_lock:
+                    self.__delete_closed_conns()
+
             if not ready:
                 continue
             data, result_conns = [], []
-            try:
-                for conn in ready:
-                    while conn.poll():
+            #try:
+            for i, conn in enumerate(ready):
+
+                if conn in self.to_ignore:
+                    continue
+
+                while conn.poll():
+                    try:
                         g = conn.recv()
-                        data.append(netencoder.get_game_state(g))
-                        result_conns.append(conn)
-            except (OSError, EOFError):
-                # If the client closed the connection during the wait, we
-                # discard it and continue.
-                continue
+                    except EOFError:
+                        # In case of the cliend closed the other end of the 
+                        # connection. We close our end and ignore it.
+                        conn.close()
+                        self.to_ignore.add(conn)
+                        break
+
+                    data.append(netencoder.get_game_state(g))
+                    result_conns.append(conn)
+            #except (OSError, EOFError, TypeError) as e:
+            #    # If the client closed the connection during the wait, we
+            #    # discard it and continue.
+            #    #print(f"PREDICT WORKER EXCEPTION, len connections: {len(self.connections)}")
+            #    #print(g)
+            #    traceback.print_exc()
+            #    #break
+            #    continue
 
             if len(data) > 0:
                 data = np.asarray(data, dtype=np.float16)
@@ -99,6 +126,12 @@ class PredictWorker():
         while self.do_run:
             try:
                 new_con = self.listener.accept()
+                with self.conn_lock:
+                    self.connections.append(new_con)
             except (socket.timeout, OSError):
                 continue
-            self.connections.append(new_con)
+
+    def __delete_closed_conns(self):
+        for i, c in enumerate(self.connections):
+            if c.closed:
+                self.connections.pop(i)
