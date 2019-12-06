@@ -2,11 +2,10 @@ from model import ChessModel
 import netencoder
 
 import numpy as np
-import traceback
 import multiprocessing
 import threading
 from multiprocessing.connection import wait
-import threading
+from threading import Lock
 import socket
 
 
@@ -24,7 +23,7 @@ class PredictWorker():
         self.listener = None
         self.connections = []
         self.to_ignore = set()
-        self.conn_lock = threading.Lock()
+        self.conn_lock = Lock()
 
     def start(self):
         """ Opens a socket to listen to new connections and creates two
@@ -86,7 +85,7 @@ class PredictWorker():
             if not ready:
                 continue
             data, result_conns = [], []
-            #try:
+
             for i, conn in enumerate(ready):
 
                 if conn in self.to_ignore:
@@ -96,7 +95,7 @@ class PredictWorker():
                     try:
                         g = conn.recv()
                     except EOFError:
-                        # In case of the cliend closed the other end of the 
+                        # In case of the cliend closed the other end of the
                         # connection. We close our end and ignore it.
                         conn.close()
                         self.to_ignore.add(conn)
@@ -104,14 +103,6 @@ class PredictWorker():
 
                     data.append(netencoder.get_game_state(g))
                     result_conns.append(conn)
-            #except (OSError, EOFError, TypeError) as e:
-            #    # If the client closed the connection during the wait, we
-            #    # discard it and continue.
-            #    #print(f"PREDICT WORKER EXCEPTION, len connections: {len(self.connections)}")
-            #    #print(g)
-            #    traceback.print_exc()
-            #    #break
-            #    continue
 
             if len(data) > 0:
                 data = np.asarray(data, dtype=np.float16)

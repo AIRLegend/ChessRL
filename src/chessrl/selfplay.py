@@ -15,7 +15,6 @@ import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'
 
 
-
 def process_initializer():
     """ Initializer of the training threads in in order to detect if there
     is a GPU available and use it. This is needed to initialize TF inside the
@@ -29,6 +28,7 @@ def process_initializer():
 
 
 multiprocessing.set_start_method('spawn', force=True)
+
 
 def get_model_path(directory):
     """ Finds all the .h5 files (neural net weights) and returns the path to
