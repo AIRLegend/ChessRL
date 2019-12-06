@@ -27,7 +27,7 @@ def process_initializer():
         tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
 
-multiprocessing.set_start_method('spawn', force=True)
+#multiprocessing.set_start_method('spawn', force=True)
 
 
 def get_model_path(directory):

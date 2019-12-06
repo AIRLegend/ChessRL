@@ -76,7 +76,7 @@ class PredictWorker():
 
         while self.do_run:
             try:
-                ready = wait(self.connections, timeout=0.001)
+                ready = wait(self.connections, timeout=0.0001)
             except OSError:
                 # If there is any connection closed (our side), we delete it.
                 with self.conn_lock:
