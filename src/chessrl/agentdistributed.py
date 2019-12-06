@@ -32,13 +32,9 @@ class AgentDistributed(Player):
         self.uci_dict = {u: i for i, u in enumerate(self.move_encodings)}
 
         self.conn = None
+        self.pool_conns = None
+        self.address = endpoint
         self.num_threads = num_threads
-
-        if endpoint is not None:
-            self.address = endpoint
-            self.pool_conns = [Client(self.address)
-                               for i in range(self.num_threads)]
-            self.conn = Client(self.address)
 
     def best_move(self, game:'Game', real_game=False, max_iters=900,  # noqa: E0602, F821
                   ai_move=True, verbose=False) -> str:
@@ -63,11 +59,12 @@ class AgentDistributed(Player):
         else:
             if game.get_result() is None:
                 current_tree = mctree.SelfPlayTree(
-                    game, self.pool_conns,
+                    game,
                     threads=self.num_threads)
                 best_move = current_tree.search_move(self, max_iters=max_iters,
                                                      verbose=verbose,
                                                      ai_move=ai_move)
+
         return best_move
 
     def predict_outcome(self, game:'Game') -> float:  # noqa: E0602, F821
@@ -103,5 +100,12 @@ class AgentDistributed(Player):
 
     def get_copy(self):
         """ Returns an empty agent with the color of this one """
-        copy = AgentDistributed(self.color)
+        copy = AgentDistributed(self.color, endpoint=self.address)
         return copy
+
+    def connect(self):
+        self.conn = Client(self.address)
+
+    def disconnect(self):
+        self.conn.close()
+        self.conn = None

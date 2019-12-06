@@ -152,9 +152,8 @@ class SelfPlayTree(Tree):
         root: Node or Game. Root state of the tree. You can pass a Node object
         with a Game as state or directly the game (it will make the Node).
     """
-    def __init__(self, root, pool, threads=6):
+    def __init__(self, root, threads=6):
         super().__init__(root)
-        self.pool = pool
         self.num_threads = threads
 
     def search_move(self, agent, max_iters=200, verbose=False, noise=True,
@@ -200,19 +199,15 @@ class SelfPlayTree(Tree):
 
     def explore_tree(self, node, agent, verbose=False):
         agent_copy = agent.get_copy()
-        c = self.pool.pop()
-        agent_copy.conn = c
-
-        current_node = node
+        agent_copy.connect()
 
         start = timer()
-        current_node = self.select(current_node, agent_copy)
+        current_node = self.select(node, agent_copy)
         end = timer()
         v = self.simulate(current_node, agent_copy)
         self.backprop(current_node, v, remove_vloss=True)
 
-        # Return connection
-        self.pool.append(c)
+        agent_copy.disconnect()
 
         elap = round(end - start, 2)
         if verbose:
@@ -325,15 +320,3 @@ class SelfPlayTree(Tree):
             policy = (1 - epsilon) * policy +\
                 np.random.dirichlet([0.03] * len(node.children))
         return policy
-
-    #def __del__(self):
-    #    def delnode(node):
-    #        for c in node.children:
-    #            print("Cleaning node...")
-    #            del(c.state)
-    #            del(c)
-
-    #    delnode(self.root)
-    #    self.pool = None
-    #    self.pipe = None
-

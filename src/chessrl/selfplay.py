@@ -60,6 +60,7 @@ def play_game(agent):
     logger = Logger.get_instance()
 
     player_color = True if random.random() >= 0.5 else False
+    logger.debug(f"Player is white: {player_color}")
 
     gam = Game(player_color=player_color)
     agent.color = player_color
@@ -79,12 +80,14 @@ def play_game(agent):
         elapsed = round(end - start, 2)
         logger.debug(f"\tMade move: {bm}, took: {elapsed} secs")
     logger.debug(gam.get_history())
+
     return gam
 
 
 def play_game_job(endpoint, result_placeholder, threads):
     agent = AgentDistributed(Game.WHITE, endpoint=endpoint,
                              num_threads=threads)
+    agent.connect()
     gam = play_game(agent)
 
     d = DatasetGame()
@@ -147,6 +150,7 @@ def main():
         proci.start()
         proci.join()
 
+        logger.debug("Stopping worker")
         worker.stop()
 
         logger.info(f"\tTraining {i+1} of {args.games}")
