@@ -73,7 +73,7 @@ def play_game(agent):
     while gam.get_result() is None:
         start = timer()
         bm, am = agent.best_move(gam, real_game=False, ai_move=True,
-                                 max_iters=100)
+                                 max_iters=900)
         gam.move(bm)  # Make our move
         gam.move(am)  # Make oponent move
         end = timer()
@@ -87,6 +87,7 @@ def play_game(agent):
 def play_game_job(endpoint, result_placeholder, threads):
     agent = AgentDistributed(Game.WHITE, endpoint=endpoint,
                              num_threads=threads)
+    agent.connect()
     gam = play_game(agent)
 
     d = DatasetGame()
