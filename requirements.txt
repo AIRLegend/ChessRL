@@ -4,7 +4,7 @@ matplotlib==3.1.0
 msgpack==0.6.2
 networkx==2.4
 numpy==1.17.2
-pillow==6.2.0
+pillow==8.3.2
 pytest==5.2.2
 python-chess==0.28.3
 tensorboard==2.0.0
